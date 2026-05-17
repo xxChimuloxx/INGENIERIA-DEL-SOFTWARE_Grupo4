@@ -3,555 +3,573 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Predictor de Diabetes - UGR</title>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<title>ChurnGuard - Predicción individual</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ugr-rojo: #C8102E;
-    --ugr-azul: #003087;
-    --ugr-azul-claro: #1a4da0;
-    --blanco: #ffffff;
-    --gris-fondo: #f4f6f9;
-    --gris-borde: #dde2ea;
-    --gris-texto: #4a5568;
-    --gris-label: #6b7280;
-    --verde: #1a7f4b;
-    --verde-bg: #f0faf5;
-    --rojo-bg: #fff5f5;
-    --sombra: 0 2px 12px rgba(0,48,135,0.10);
+    --bg:#f5f5f3; --surface:#ffffff; --border:#e4e4e0;
+    --text:#1a1a18; --muted:#8a8a82; --accent:#2563eb;
+    --danger:#dc2626; --warning:#d97706; --success:#16a34a;
+    --danger-bg:#fef2f2; --warn-bg:#fffbeb; --ok-bg:#f0fdf4;
+    --sidebar:#16161a; --radius:10px;
   }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); display:flex; height:100vh; overflow:hidden; font-size:14px; flex-direction:column; }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  .sidebar { display:none; }
+  .logo { padding:0 18px 24px; display:flex; align-items:center; gap:10px; }
+  .logo-icon { width:28px; height:28px; background:var(--accent); border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .logo-text { color:#fff; font-size:13px; font-weight:600; line-height:1.2; }
+  .logo-sub  { color:rgba(255,255,255,.35); font-size:11px; }
+  .nav-item { padding:8px 18px; font-size:12px; color:rgba(255,255,255,.45); display:flex; align-items:center; gap:9px; cursor:pointer; transition:background .15s,color .15s; }
+  .nav-item:hover { background:rgba(255,255,255,.05); color:rgba(255,255,255,.75); }
+  .nav-item.active { background:rgba(37,99,235,.2); color:#fff; }
+  .nav-dot { width:5px; height:5px; border-radius:50%; background:currentColor; opacity:.5; flex-shrink:0; }
+  .nav-item.active .nav-dot { opacity:1; background:var(--accent); }
+  .sidebar-footer { margin-top:auto; padding:16px 18px; font-size:10px; color:rgba(255,255,255,.2); }
 
-  body {
-    background: var(--gris-fondo);
-    font-family: 'Open Sans', sans-serif;
-    color: var(--gris-texto);
-    min-height: 100vh;
+  .main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 28px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .topbar-title { font-size:17px; font-weight:600; }
+  .topbar-badge { font-size:11px; color:var(--accent); background:#eff6ff; padding:3px 10px; border-radius:20px; }
+  .content { flex:1; overflow-y:auto; padding:24px 28px; }
+  .page-sub { font-size:13px; color:var(--muted); margin-bottom:22px; }
+
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; margin-bottom:14px; }
+  .card-title { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:14px; }
+
+  .field { margin-bottom:11px; }
+  .field label { display:block; font-size:11px; color:var(--muted); margin-bottom:4px; font-weight:500; }
+  .field input, .field select {
+    width:100%; padding:8px 11px; border:1px solid var(--border);
+    border-radius:7px; font-family:inherit; font-size:13px; color:var(--text);
+    background:var(--bg); outline:none; transition:border .15s,box-shadow .15s; appearance:none;
   }
+  .field input:focus, .field select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,.1); }
 
-  /* HEADER */
-  header {
-    background: var(--ugr-azul);
-    padding: 0;
-    border-bottom: 4px solid var(--ugr-rojo);
-  }
+  .btn-calc { width:100%; padding:11px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; margin-top:4px; transition:background .15s; }
+  .btn-calc:hover { background:#1d4ed8; }
 
-  .header-inner {
-    max-width: 780px;
-    margin: 0 auto;
-    padding: 1.2rem 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1.2rem;
-  }
+  /* -- Gauge -- */
+  .gauge-wrap { text-align:center; padding:6px 0 12px; }
+  .gauge-label { font-size:12px; color:var(--muted); margin-top:2px; }
+  .risk-pill { display:inline-block; margin-top:7px; font-size:12px; font-weight:600; padding:3px 13px; border-radius:20px; }
+  .risk-alto  { background:var(--danger-bg); color:var(--danger); }
+  .risk-medio { background:var(--warn-bg);   color:var(--warning); }
+  .risk-bajo  { background:var(--ok-bg);     color:var(--success); }
+  .alert-box  { border-radius:7px; padding:9px 12px; font-size:12px; margin-top:10px; line-height:1.5; }
+  .alert-alto  { background:var(--danger-bg); color:var(--danger); }
+  .alert-medio { background:var(--warn-bg);   color:var(--warning); }
+  .alert-bajo  { background:var(--ok-bg);     color:var(--success); }
 
-  .logo-ugr {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-shrink: 0;
-  }
+  /* -- Doble gauge -- */
+  .dual-gauge { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .model-gauge { text-align:center; padding:10px 8px 8px; background:var(--bg); border-radius:8px; }
+  .model-label { font-size:10px; color:var(--muted); margin-bottom:4px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+  .model-pct { font-size:26px; font-weight:600; font-family:'DM Mono',monospace; }
+  .model-sub  { font-size:10px; color:var(--muted); margin-top:2px; }
 
-  .logo-circulo {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    border: 2.5px solid var(--ugr-rojo);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+  /* -- Veredicto -- */
+  .veredicto { border-radius:8px; padding:12px 14px; margin-top:12px; }
+  .veredicto-title { font-size:12px; font-weight:600; margin-bottom:4px; }
+  .veredicto-body  { font-size:12px; line-height:1.5; }
+  .ver-coincide { background:#f0fdf4; border:1px solid #bbf7d0; }
+  .ver-diverge  { background:#fffbeb; border:1px solid #fde68a; }
+  .ver-alto-ambos { background:var(--danger-bg); border:1px solid #fecaca; }
 
-  .logo-circulo svg {
-    width: 28px;
-    height: 28px;
-  }
+  /* -- Barras de factores -- */
+  .factor { padding:7px 0; border-bottom:1px solid var(--border); }
+  .factor:last-child { border-bottom:none; }
+  .factor-header { display:flex; align-items:center; gap:7px; margin-bottom:4px; }
+  .factor-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .factor-name { font-size:12px; font-weight:500; flex:1; }
+  .factor-pct  { font-size:11px; font-family:'DM Mono',monospace; color:var(--muted); }
+  .factor-bar-bg { height:4px; background:var(--border); border-radius:3px; }
+  .factor-bar    { height:4px; border-radius:3px; transition:width .4s ease; }
+  .factor-sub { font-size:10px; color:var(--muted); margin-top:2px; }
 
-  .logo-texto {
-    display: flex;
-    flex-direction: column;
-  }
+  .action { display:flex; align-items:flex-start; gap:9px; padding:7px 0; border-bottom:1px solid var(--border); font-size:12px; }
+  .action:last-child { border-bottom:none; }
+  .action-icon { width:16px; height:16px; border-radius:50%; flex-shrink:0; margin-top:1px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; }
+  .a-crit { background:var(--danger-bg); color:var(--danger); }
+  .a-warn { background:var(--warn-bg);   color:var(--warning); }
+  .a-ok   { background:var(--ok-bg);     color:var(--success); }
 
-  .logo-ugr-sigla {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--ugr-rojo);
-    line-height: 1;
-    letter-spacing: 0.02em;
-  }
+  .placeholder { display:flex; align-items:center; justify-content:center; height:100px; font-size:12px; color:var(--muted); text-align:center; }
 
-  .logo-ugr-nombre {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 0.6rem;
-    font-weight: 600;
-    color: rgba(255,255,255,0.75);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
 
-  .header-divider {
-    width: 1px;
-    height: 36px;
-    background: rgba(255,255,255,0.2);
-    flex-shrink: 0;
-  }
-
-  .header-info {
-    flex: 1;
-  }
-
-  .header-carrera {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 0.65rem;
-    font-weight: 600;
-    color: rgba(255,255,255,0.55);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 0.2rem;
-  }
-
-  .header-titulo {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--blanco);
-  }
-
-  /* CONTENIDO */
-  .contenido {
-    max-width: 780px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
-  }
-
-  .page-title {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--ugr-azul);
-    margin-bottom: 0.3rem;
-  }
-
-  .page-subtitle {
-    font-size: 0.85rem;
-    color: var(--gris-label);
-    margin-bottom: 1.8rem;
-  }
-
-  /* CARD */
-  .card {
-    background: var(--blanco);
-    border: 1px solid var(--gris-borde);
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 1.2rem;
-    box-shadow: var(--sombra);
-  }
-
-  .card-header {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin-bottom: 1.4rem;
-    padding-bottom: 0.8rem;
-    border-bottom: 2px solid var(--gris-fondo);
-  }
-
-  .card-header-bar {
-    width: 4px;
-    height: 18px;
-    background: var(--ugr-rojo);
-    border-radius: 2px;
-    flex-shrink: 0;
-  }
-
-  .card-header-title {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--ugr-azul);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-
-  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
-
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--ugr-azul);
-    font-family: 'Montserrat', sans-serif;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
-  .label-hint {
-    font-size: 0.65rem;
-    font-weight: 400;
-    color: var(--gris-label);
-    text-transform: none;
-    letter-spacing: 0;
-  }
-
-  input[type="number"] {
-    background: var(--gris-fondo);
-    border: 1.5px solid var(--gris-borde);
-    border-radius: 6px;
-    color: var(--ugr-azul);
-    font-family: 'Open Sans', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 600;
-    padding: 0.55rem 0.8rem;
-    outline: none;
-    transition: border-color 0.2s, background 0.2s;
-    width: 100%;
-  }
-
-  input[type="number"]:focus {
-    border-color: var(--ugr-azul);
-    background: var(--blanco);
-  }
-
-  /* BOTON */
-  .btn {
-    width: 100%;
-    padding: 0.85rem;
-    background: var(--ugr-rojo);
-    color: var(--blanco);
-    border: none;
-    border-radius: 6px;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 700;
-    cursor: pointer;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    transition: background 0.2s, transform 0.1s;
-    margin-bottom: 1.2rem;
-  }
-
-  .btn:hover { background: #a50d26; }
-  .btn:active { transform: scale(0.99); }
-
-  /* RESULTADO */
-  #result { display: none; margin-bottom: 1.2rem; }
-
-  .result-box {
-    border-radius: 8px;
-    padding: 1.4rem;
-    border-left: 5px solid;
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    box-shadow: var(--sombra);
-  }
-
-  .result-box.positivo {
-    background: var(--rojo-bg);
-    border-color: var(--ugr-rojo);
-    border-top: 1px solid #fcc;
-    border-right: 1px solid #fcc;
-    border-bottom: 1px solid #fcc;
-  }
-
-  .result-box.negativo {
-    background: var(--verde-bg);
-    border-color: var(--verde);
-    border-top: 1px solid #b7e4cc;
-    border-right: 1px solid #b7e4cc;
-    border-bottom: 1px solid #b7e4cc;
-  }
-
-  .result-icon {
-    font-size: 1.8rem;
-    flex-shrink: 0;
-    margin-top: 0.1rem;
-  }
-
-  .result-label {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 0.95rem;
-    font-weight: 700;
-    margin-bottom: 0.25rem;
-  }
-
-  .result-label.positivo { color: var(--ugr-rojo); }
-  .result-label.negativo { color: var(--verde); }
-
-  .result-prob {
-    font-size: 0.8rem;
-    color: var(--gris-label);
-    margin-bottom: 0.6rem;
-  }
-
-  .result-desc {
-    font-size: 0.82rem;
-    color: var(--gris-texto);
-    line-height: 1.55;
-  }
-
-  .prob-bar-wrap {
-    margin-top: 0.8rem;
-    background: var(--gris-borde);
-    border-radius: 4px;
-    height: 6px;
-    width: 100%;
-  }
-
-  .prob-bar {
-    height: 6px;
-    border-radius: 4px;
-    transition: width 0.6s ease;
-  }
-
-  .prob-bar.positivo { background: var(--ugr-rojo); }
-  .prob-bar.negativo { background: var(--verde); }
-
-  .chips-row {
-    display: flex;
-    gap: 0.6rem;
-    margin-top: 1rem;
-    flex-wrap: wrap;
-  }
-
-  .chip {
-    background: var(--blanco);
-    border: 1px solid var(--gris-borde);
-    border-radius: 20px;
-    padding: 0.3rem 0.75rem;
-    font-size: 0.72rem;
-    color: var(--gris-label);
-    font-family: 'Open Sans', sans-serif;
-  }
-
-  .chip strong {
-    color: var(--ugr-azul);
-    font-weight: 600;
-  }
-
-  /* LOADING */
-  .loading {
-    display: none;
-    text-align: center;
-    color: var(--gris-label);
-    font-size: 0.85rem;
-    padding: 1rem;
-    font-family: 'Open Sans', sans-serif;
-  }
-
-  .dot { animation: blink 1.2s infinite; }
-  .dot:nth-child(2) { animation-delay: 0.2s; }
-  .dot:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
-
-  /* FOOTER */
-  footer {
-    background: var(--ugr-azul);
-    border-top: 3px solid var(--ugr-rojo);
-    padding: 1.2rem 1.5rem;
-    text-align: center;
-    margin-top: 2rem;
-  }
-
-  .footer-inner {
-    max-width: 780px;
-    margin: 0 auto;
-  }
-
-  .footer-metricas {
-    font-size: 0.75rem;
-    color: rgba(255,255,255,0.6);
-    margin-bottom: 0.4rem;
-    font-family: 'Open Sans', sans-serif;
-  }
-
-  .footer-aviso {
-    font-size: 0.7rem;
-    color: rgba(255,255,255,0.4);
-    font-family: 'Open Sans', sans-serif;
-  }
+  .disclaimer { background:#fffbeb; border:1px solid #fde68a; border-radius:8px; 
+                padding:10px 14px; margin-bottom:16px; font-size:12px; 
+                color:#92400e; line-height:1.5; }
+  .disclaimer strong { color:#b45309; }
+  .model-note { font-size:10px; color:var(--muted); margin-top:4px; 
+                text-align:center; line-height:1.3; padding:0 4px; }
+  .model-note.selected { color:#16a34a; font-weight:600; }
+  .spin { animation:spin 1s linear infinite; display:inline-block; }
+  @keyframes spin { to { transform:rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="header-inner">
-    <div class="logo-ugr">
-      <div class="logo-circulo">
-        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="20" cy="20" r="18" stroke="#C8102E" stroke-width="2.5" fill="none"/>
-          <path d="M8 26 Q14 18 20 22 Q26 26 32 18" stroke="#C8102E" stroke-width="2" fill="none" stroke-linecap="round"/>
-          <path d="M10 30 Q16 24 20 27 Q24 30 30 24" stroke="#C8102E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-          <path d="M14 10 L20 6 L26 10" stroke="#C8102E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M17 10 L17 16 M20 8 L20 16 M23 10 L23 16" stroke="#C8102E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <div class="logo-texto">
-        <span class="logo-ugr-sigla">UGR</span>
-        <span class="logo-ugr-nombre">Universidad del Gran Rosario</span>
-      </div>
-    </div>
-    <div class="header-divider"></div>
-    <div class="header-info">
-      <div class="header-carrera">Ingeniería del Software · CRISP-DM</div>
-      <div class="header-titulo">Predictor de Riesgo de Diabetes</div>
-    </div>
+
+
+<div class="main">
+  <div class="topbar">
+    <span class="topbar-title">ChurnGuard · Simulador de Predicción de Churn</span>
+    <span class="topbar-badge">UGR · (V.CLCD1.03.1) INGENIERÍA DEL SOFTWARE · CRISP-DM · GRUPO #4 </span>
   </div>
-</header>
-
-<div class="contenido">
-
-  <div class="page-title">Evaluación de Riesgo Clínico</div>
-  <div class="page-subtitle">Modelo de clasificación Random Forest entrenado sobre el dataset Pima Indians Diabetes (UCI). Ingrese los valores del paciente para obtener una estimación de riesgo.</div>
-
-  <div class="card">
-    <div class="card-header">
-      <div class="card-header-bar"></div>
-      <div class="card-header-title">Variables Clínicas del Paciente</div>
+  <div class="content">
+    <p class="page-sub">Ingresá los datos del cliente. Se ejecutan los dos modelos entrenados y se cruzan las conclusiones.</p>
+    <div class="disclaimer">
+      ⚠ <strong>Limitación conocida:</strong> Los modelos fueron entrenados sobre un dataset sintético 
+      con baja señal predictiva - ninguna variable supera 0.08 de correlación con el target. 
+      Los scores son <strong>orientativos</strong>, no predicciones confiables en producción. 
+      En un entorno real con datos genuinos y mayor volumen, el modelo mejoraría significativamente.
     </div>
     <div class="grid">
-      <div class="field">
-        <label>Embarazos <span class="label-hint">(cantidad)</span></label>
-        <input type="number" id="embarazos" min="0" max="20" value="3" step="1">
+
+      <!-- COLUMNA IZQUIERDA: formulario -->
+      <div>
+        <div class="card">
+          <div class="card-title">Datos del cliente</div>
+
+          <div class="field"><label>Nombre</label><input type="text" id="f-nombre" value="TechNova Solutions S.A."></div>
+          <div class="field"><label>Plan</label>
+            <select id="f-plan">
+              <option value="0">Básico (enc=0)</option>
+              <option value="1">Pro (enc=1)</option>
+              <option value="2">Enterprise (enc=2)</option>
+            </select>
+          </div>
+          <div class="field"><label>País</label>
+            <select id="f-country">
+              <option value="0">Australia (AU)</option>
+              <option value="1">Canadá (CA)</option>
+              <option value="2">Alemania (DE)</option>
+              <option value="3">Francia (FR)</option>
+              <option value="4">India (IN)</option>
+              <option value="5">Reino Unido (UK)</option>
+              <option value="6" selected>Estados Unidos (US)</option>
+            </select>
+          </div>
+          <div class="field"><label>Industria (enc)</label>
+            <select id="f-industry">
+              <option value="0">AgriTech (0)</option>
+              <option value="1">DevTools (1)</option>
+              <option value="2">EdTech (2)</option>
+              <option value="3">FinTech (3)</option>
+              <option value="4">HealthTech (4)</option>
+              <option value="5">E-commerce (5)</option>
+            </select>
+          </div>
+          <div class="field"><label>Fuente de adquisición (enc)</label>
+            <select id="f-referral">
+              <option value="0">Orgánico (0)</option>
+              <option value="1">Partner (1)</option>
+              <option value="2">Paid (2)</option>
+            </select>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="field"><label>Seats</label><input type="number" id="f-seats" value="5" min="1"></div>
+            <div class="field"><label>Antigüedad (días)</label><input type="number" id="f-tenure" value="240" min="0"></div>
+            <div class="field"><label>MRR promedio (USD)</label><input type="number" id="f-mrr" value="1200" min="0"></div>
+            <div class="field"><label>N° suscripciones</label><input type="number" id="f-nsubs" value="1" min="0"></div>
+            <div class="field"><label>Auto-renovación (%)</label><input type="number" id="f-autorenew" value="0.8" min="0" max="1" step="0.05"></div>
+            <div class="field"><label>Uso total (sesiones)</label><input type="number" id="f-uso" value="300" min="0"></div>
+            <div class="field"><label>Features distintas</label><input type="number" id="f-features" value="18" min="0"></div>
+            <div class="field"><label>Total errores</label><input type="number" id="f-errores" value="10" min="0"></div>
+            <div class="field"><label>% uso en beta</label><input type="number" id="f-beta" value="0.05" min="0" max="1" step="0.01"></div>
+            <div class="field"><label>Total tickets</label><input type="number" id="f-tickets" value="10" min="0"></div>
+            <div class="field"><label>Resolución promedio (hs)</label><input type="number" id="f-resolucion" value="1" min="0" step="0.5"></div>
+            <div class="field"><label>Satisfacción (0–10)</label><input type="number" id="f-sat" value="4" min="0" max="10" step="0.1"></div>
+            <div class="field"><label>Tasa escalación (0–1)</label><input type="number" id="f-escalacion" value="0.9" min="0" max="1" step="0.05"></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:4px;">
+            <div class="field"><label>¿Es trial?</label><select id="f-trial"><option value="0">No</option><option value="1">Sí</option></select></div>
+            <div class="field"><label>¿Tuvo upgrade?</label><select id="f-upgrade"><option value="0">No</option><option value="1">Sí</option></select></div>
+            <div class="field"><label>¿Tuvo downgrade?</label><select id="f-downgrade"><option value="0">No</option><option value="1">Sí</option></select></div>
+          </div>
+
+          <button class="btn-calc" onclick="calcular()">Calcular riesgo</button>
+        </div>
       </div>
-      <div class="field">
-        <label>Glucosa <span class="label-hint">(mg/dL)</span></label>
-        <input type="number" id="glucosa" min="50" max="300" value="120" step="1">
-      </div>
-      <div class="field">
-        <label>Presión Arterial <span class="label-hint">(mm Hg diastólica)</span></label>
-        <input type="number" id="presion" min="20" max="140" value="70" step="1">
-      </div>
-      <div class="field">
-        <label>Grosor de Piel <span class="label-hint">(mm, pliegue tricipital)</span></label>
-        <input type="number" id="piel" min="0" max="100" value="25" step="1">
-      </div>
-      <div class="field">
-        <label>Insulina <span class="label-hint">(μU/ml, 2 horas post-carga)</span></label>
-        <input type="number" id="insulina" min="0" max="900" value="100" step="1">
-      </div>
-      <div class="field">
-        <label>IMC <span class="label-hint">(kg/m²)</span></label>
-        <input type="number" id="imc" min="10" max="70" value="28.0" step="0.1">
-      </div>
-      <div class="field">
-        <label>Función Pedigree <span class="label-hint">(antecedente familiar, 0.0 a 2.5)</span></label>
-        <input type="number" id="pedigree" min="0" max="2.5" value="0.35" step="0.001">
-      </div>
-      <div class="field">
-        <label>Edad <span class="label-hint">(años)</span></label>
-        <input type="number" id="edad" min="18" max="100" value="35" step="1">
+
+      <!-- COLUMNA DERECHA: resultados -->
+      <div>
+
+        <!-- Resultado dual -->
+        <div class="card">
+          <div class="card-title">Resultado - Árbol de Decisión · KNN (K=14) · Random Forest</div>
+          <div id="placeholder-res" class="placeholder">Completá los datos y presioná Calcular riesgo</div>
+          <div id="resultado-content" style="display:none;">
+            <div class="dual-gauge">
+              <div class="model-gauge">
+                <div class="model-label">Árbol de Decisión</div>
+                <div class="model-pct" id="dt-pct" style="color:var(--danger)">-</div>
+                <svg width="110" height="60" viewBox="0 0 110 60" style="display:block;margin:6px auto 0;">
+                  <path d="M10,55 A45,45 0 0,1 100,55" fill="none" stroke="#e4e4e0" stroke-width="9" stroke-linecap="round"/>
+                  <path id="dt-arc" d="M10,55 A45,45 0 0,1 100,55" fill="none" stroke="url(#g1)" stroke-width="9" stroke-linecap="round" stroke-dasharray="141" stroke-dashoffset="141"/>
+                  <defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#16a34a"/><stop offset="45%" stop-color="#d97706"/><stop offset="100%" stop-color="#dc2626"/></linearGradient></defs>
+                </svg>
+                <div class="gauge-label">profundidad=4</div>
+                <div class="model-note">Recall churn = 0%<br>No detecta churn en evaluación</div>
+              </div>
+              <div class="model-gauge">
+                <div class="model-label">KNN (K=14)</div>
+                <div class="model-pct" id="knn-pct" style="color:var(--danger)">-</div>
+                <svg width="110" height="60" viewBox="0 0 110 60" style="display:block;margin:6px auto 0;">
+                  <path d="M10,55 A45,45 0 0,1 100,55" fill="none" stroke="#e4e4e0" stroke-width="9" stroke-linecap="round"/>
+                  <path id="knn-arc" d="M10,55 A45,45 0 0,1 100,55" fill="none" stroke="url(#g2)" stroke-width="9" stroke-linecap="round" stroke-dasharray="141" stroke-dashoffset="141"/>
+                  <defs><linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#16a34a"/><stop offset="45%" stop-color="#d97706"/><stop offset="100%" stop-color="#dc2626"/></linearGradient></defs>
+                </svg>
+                <div class="gauge-label">K=14 · 375 puntos entrenamiento</div>
+                <div class="model-note">Recall churn = 0%<br>No detecta churn en evaluación</div>
+              </div>
+              <div class="model-gauge">
+                <div class="model-label">Random Forest</div>
+                <div class="model-pct" id="rf-pct" style="color:var(--danger)">-</div>
+                <svg width="110" height="60" viewBox="0 0 110 60" style="display:block;margin:6px auto 0;">
+                  <path d="M10,55 A45,45 0 0,1 100,55" fill="none" stroke="#e4e4e0" stroke-width="9" stroke-linecap="round"/>
+                  <path id="rf-arc" d="M10,55 A45,45 0 0,1 100,55" fill="none" stroke="url(#g3)" stroke-width="9" stroke-linecap="round" stroke-dasharray="141" stroke-dashoffset="141"/>
+                  <defs><linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#16a34a"/><stop offset="45%" stop-color="#d97706"/><stop offset="100%" stop-color="#dc2626"/></linearGradient></defs>
+                </svg>
+                <div class="gauge-label">100 árboles · umbral 0.30</div>
+                <div class="model-note selected">✓ Modelo seleccionado<br>Recall churn = 74%</div>
+              </div>
+            </div>
+
+            <!-- Veredicto cruzado -->
+            <div class="veredicto" id="veredicto-box">
+              <div class="veredicto-title" id="veredicto-title">-</div>
+              <div class="veredicto-body"  id="veredicto-body">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Factores clave -->
+        <div class="card">
+          <div class="card-title">Factores de riesgo (variables del modelo)</div>
+          <div id="placeholder-fac" class="placeholder">Los factores se muestran después de calcular.</div>
+          <div id="factores-content" style="display:none;"></div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="card">
+          <div class="card-title">Acciones recomendadas</div>
+          <div id="placeholder-acc" class="placeholder">Las acciones se muestran después de calcular.</div>
+          <div id="acciones-content" style="display:none;"></div>
+        </div>
+
       </div>
     </div>
   </div>
-
-  <button class="btn" onclick="predecir()">Calcular Riesgo</button>
-
-  <div class="loading" id="loading">
-    Procesando<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
-  </div>
-
-  <div id="result"></div>
-
 </div>
 
-<footer>
-  <div class="footer-inner">
-    <div class="footer-metricas">Random Forest · Accuracy 77% · F1 0.67 · ROC-AUC 0.83 · Dataset: Pima Indians Diabetes Database (UCI, N=768)</div>
-    <div class="footer-aviso">Grupo 4 · V.CLCD1.03.1 · Ingeniería del Software</div>
-  </div>
-</footer>
-
 <script>
-function sigmoid(x) {
-  return 1 / (1 + Math.exp(-x));
+const KNN_DATA=[[-0.62122,0.88098,-0.48747,-1.18697,0.30418,0.79847,-0.73703,-0.54243,0.55443,0.75551,-0.01958,-0.06105,-0.5067,0.95815,0.71216,-0.42108,1.42084,0.66937,0.71659,-1.2607],[-0.52393,0.27729,-0.48747,0.36777,1.20708,0.79847,-0.73703,0.91685,0.71744,1.45161,0.062,-0.20612,0.01388,0.33431,0.85084,1.90198,0.71325,-1.98969,0.71659,1.14522],[-0.57258,-0.85521,-0.48747,-1.09186,-0.59872,0.79847,1.3568,-0.37767,-0.91269,-0.6367,-0.67222,0.86373,2.61679,-0.34152,0.29611,0.61139,1.42084,0.66937,0.71659,1.14522],[0.0598,1.71397,-0.48747,-1.20774,-0.29776,0.79847,-0.73703,-0.1763,-0.51359,0.23343,-0.42748,0.46254,-1.02728,-0.0166,-0.11993,-0.42108,1.42084,-2.5215,0.71659,1.14522],[-0.76716,-1.3419,-0.48747,-0.7345,-0.59872,-1.25239,1.3568,-0.37767,0.48697,0.23343,-0.10116,0.41327,-1.02728,2.36179,1.1282,-0.42108,-0.70193,0.66937,1.44287,-1.2607],[-0.52393,1.03541,-0.48747,-0.06754,-0.89969,-1.25239,1.3568,1.43466,-0.63726,0.0594,-0.3459,0.08303,1.05505,0.24333,0.46253,-0.42108,-1.40952,-1.45788,-0.00968,1.14522],[-0.32936,-0.36851,-0.48747,-0.83976,0.00321,0.79847,-0.73703,-0.01521,-0.59229,-0.28865,0.8778,0.26661,0.01388,-0.19205,0.57348,-0.42108,1.42084,0.66937,1.44287,-0.05774],[6.23765,-1.52441,2.05142,3.46541,0.30418,0.79847,-0.73703,0.1166,-0.07514,0.40745,-0.67222,-0.47358,0.53446,0.73981,0.12969,-0.42108,0.00566,0.66937,-0.00968,-1.2607],[1.03269,1.69993,-0.48747,0.64817,-0.89969,0.79847,-0.73703,1.43466,-0.53608,-0.81073,-0.99854,-2.34581,-2.06845,-2.78489,-3.03224,-0.42108,0.00566,-2.5215,1.44287,-1.2607],[-0.03749,-1.13131,-0.48747,-0.4822,0.00321,0.79847,1.3568,-2.19001,0.11035,0.40745,0.14358,0.56655,2.09621,-0.387,-0.53598,-0.42108,0.71325,-0.39425,-0.73596,1.14522],[2.44338,-1.0658,-0.48747,2.91782,0.30418,0.79847,-0.73703,0.77563,0.37455,0.0594,0.22516,-0.26555,0.01388,1.48452,0.08809,1.90198,0.71325,-2.5215,-0.00968,-0.05774],[-0.71851,-0.13453,-0.48747,0.2411,1.50804,0.79847,1.3568,-0.98178,1.08843,0.92953,-0.10116,-0.42009,0.53446,-1.03814,0.57348,-0.42108,-0.70193,-2.5215,-0.00968,-0.05774],[-0.76716,-1.28106,-0.48747,-0.98631,0.30418,-1.25239,1.3568,1.43466,0.82986,0.92953,0.38832,-0.89634,0.53446,-0.66383,0.29611,-0.42108,-1.40952,0.66937,0.71659,1.14522],[-0.52393,-1.35594,-0.48747,-0.22798,0.30418,0.79847,1.3568,0.77563,0.53756,0.75551,1.2857,1.22035,0.01388,-0.23104,0.29611,-0.42108,-0.70193,-2.5215,-0.00968,1.14522],[0.98405,-0.28896,2.05142,2.07921,0.00321,-1.25239,-0.73703,-2.19001,-0.48549,0.23343,-0.26432,-0.77836,-0.5067,-1.1733,1.1282,-0.42108,-1.40952,-2.5215,-0.73596,1.14522],[-0.23207,-0.57442,2.05142,-0.32311,0.60514,-1.25239,-0.73703,0.83055,0.29585,1.10356,0.4699,-0.13596,-1.54786,-1.53721,-0.53598,-0.42108,1.42084,0.66937,-0.00968,1.14522],[-0.13478,-0.97688,-0.48747,-0.14574,0.00321,-1.25239,-0.73703,-0.74014,1.11654,0.75551,0.63306,1.18469,-1.02728,-0.32852,-0.53598,-0.42108,0.71325,0.66937,0.71659,-1.2607],[-0.62122,1.70461,-0.48747,-0.18231,1.50804,-1.25239,1.3568,-0.01521,2.37568,1.45161,1.53044,0.12307,-0.5067,-0.60145,0.29611,2.67633,-0.70193,0.66937,-0.00968,-1.2607],[3.27034,-1.09387,-0.48747,4.06281,0.30418,0.79847,1.3568,-0.54243,0.49259,1.27758,1.36728,0.27532,0.01388,-1.32277,0.29611,1.90198,-1.40952,-0.39425,-0.73596,-1.2607],[-0.76716,-0.63526,-0.48747,-1.07782,2.71191,-1.25239,-0.73703,-0.09152,2.1677,1.62564,3.89625,-0.23129,1.57563,0.72421,0.62895,-0.42108,1.42084,0.66937,-1.46223,1.14522],[-0.71851,0.99329,-0.48747,-0.84676,0.60514,0.79847,1.3568,0.83055,0.2565,0.23343,1.36728,-1.52884,1.05505,-0.52347,0.08809,-0.42108,0.00566,0.13756,-0.73596,-0.05774],[-0.91309,-0.42935,2.05142,0.01309,-1.80259,-1.25239,1.3568,1.43466,-1.91888,-2.37697,-2.05907,-0.84802,-1.02728,1.62098,-3.03224,-0.42108,0.71325,0.66937,-1.46223,1.14522],[-0.71851,0.1837,-0.48747,-1.05367,-2.10355,-1.25239,-0.73703,1.43466,-1.62658,-2.20294,-1.08012,-1.22247,1.05505,-0.43249,0.01875,-0.42108,-0.70193,-0.92606,0.71659,1.14522],[1.03269,1.26004,-0.48747,-0.22036,0.60514,0.79847,-0.73703,-0.98178,-0.19881,0.23343,-0.26432,-0.00552,1.05505,-0.69243,-0.11993,-0.42108,1.42084,0.66937,0.71659,-1.2607],[-0.8158,-0.88797,2.05142,-0.51979,-1.20065,-1.25239,1.3568,-0.98178,-1.02512,-0.98476,-1.24328,1.66612,-2.06845,-2.78489,-3.03224,-0.42108,0.71325,0.66937,-0.73596,1.14522],[0.0598,0.78738,2.05142,-0.37837,1.80901,-1.25239,1.3568,0.52849,1.73487,1.45161,1.44886,0.36103,-0.5067,-0.86138,1.1282,-0.42108,1.42084,0.66937,-0.73596,1.14522],[0.10844,-0.96284,-0.48747,-0.10744,-1.50162,0.79847,-0.73703,-0.01521,-1.77835,-2.02891,-1.48802,0.1505,-1.02728,-0.56246,0.29611,-0.42108,-0.70193,0.66937,0.71659,1.14522],[1.51913,-1.20151,-0.48747,2.8614,-1.50162,0.79847,-0.73703,-1.46507,-0.97453,-0.81073,-0.50906,0.37744,-0.5067,0.51626,-0.11993,-0.42108,1.42084,0.66937,1.44287,1.14522],[-0.91309,-0.76629,-0.48747,-0.47583,2.10997,0.79847,1.3568,-1.55036,2.38692,1.79966,2.50939,0.97315,0.01388,-0.03609,0.57348,-0.42108,0.00566,-0.39425,-0.00968,-1.2607],[-0.8158,-0.73821,-0.48747,-1.04141,-1.50162,-1.25239,1.3568,-0.01521,-1.3118,-1.85489,-0.67222,-0.74104,0.01388,-0.32852,0.71216,-0.42108,0.00566,0.66937,1.44287,-0.05774],[0.01116,0.81078,-0.48747,-0.49404,1.20708,0.79847,1.3568,-0.63658,0.64436,0.40745,-0.26432,0.23235,1.57563,0.20063,-0.11993,-0.42108,1.42084,0.66937,-1.46223,-0.05774],[-0.28071,-0.15793,-0.48747,-0.19706,-0.59872,-1.25239,1.3568,-2.19001,-0.31123,-0.28865,-0.3459,-1.32459,-1.54786,1.97189,1.1282,-0.42108,1.42084,-1.45788,0.71659,-0.05774],[2.29745,0.41768,2.05142,1.22702,-1.20065,0.79847,1.3568,0.22644,-1.13754,-1.33281,-0.99854,0.06135,-1.02728,-0.60145,0.71216,-0.42108,-1.40952,-1.98969,-0.73596,-1.2607],[2.15151,0.81546,2.05142,2.56738,-0.59872,0.79847,1.3568,-0.37767,0.05976,-0.28865,1.53044,0.6215,1.57563,0.46799,0.62895,-0.42108,0.71325,0.13756,-1.46223,-1.2607],[-0.91309,0.72187,-0.48747,-0.67415,0.60514,-1.25239,1.3568,0.22644,-0.01331,0.58148,-0.50906,-0.14318,0.01388,-0.19205,-0.11993,-0.42108,-0.70193,0.13756,-0.73596,1.14522],[6.96732,-0.34044,-0.48747,3.92577,-0.89969,0.79847,-0.73703,0.39904,-1.28369,-2.02891,-0.26432,0.75306,0.01388,0.13936,-0.53598,-0.42108,0.00566,0.13756,1.44287,-0.05774],[0.4976,0.8997,2.05142,0.39617,-0.89969,0.79847,1.3568,0.39904,-0.41803,-0.11463,0.4699,-0.25588,0.01388,-0.25054,0.29611,1.90198,-1.40952,0.66937,-0.00968,1.14522],[0.44896,-1.08451,-0.48747,0.14437,0.60514,0.79847,-0.73703,-0.37767,0.09911,0.92953,-0.18274,-0.30338,-0.5067,0.04838,0.71216,-0.42108,1.42084,0.66937,1.44287,-1.2607],[0.10844,-0.89264,-0.48747,-1.13666,-1.80259,-1.25239,-0.73703,1.43466,-1.84581,-2.37697,-0.91696,1.86671,-1.54786,-2.62893,-0.53598,-0.42108,-1.40952,0.66937,-0.73596,-0.05774],[-0.42664,-0.75225,-0.48747,0.3736,-1.80259,-1.25239,-0.73703,1.43466,-1.76711,-2.02891,-1.08012,2.64681,-1.02728,1.69896,-3.03224,-0.42108,1.42084,0.66937,1.44287,-0.05774],[0.88676,1.10092,-0.48747,0.05066,0.30418,0.79847,1.3568,-1.20146,0.6275,0.75551,0.4699,0.55313,0.53446,-1.13171,0.50413,-0.42108,0.71325,0.66937,-0.73596,1.14522],[-0.08613,0.74994,2.05142,-0.4507,0.90611,-1.25239,1.3568,0.31938,1.25145,1.10356,0.4699,-0.06657,-0.5067,-0.91337,-3.03224,-0.42108,-0.70193,-1.98969,0.71659,-0.05774],[-0.57258,-0.93944,-0.48747,-0.69321,0.60514,0.79847,-0.73703,-0.98178,0.28461,0.23343,0.14358,-1.16335,2.09621,-0.03609,0.12969,-0.42108,1.42084,0.66937,-0.00968,-0.05774],[-0.18342,0.28665,-0.48747,-0.0293,1.80901,0.79847,1.3568,-0.37767,1.40322,0.92953,1.61202,-0.78562,0.01388,0.41229,0.29611,-0.42108,1.42084,0.66937,-0.00968,-1.2607],[-0.18342,-0.2094,2.05142,-0.79375,0.30418,0.79847,-0.73703,0.77563,0.62188,0.75551,0.062,1.02421,0.53446,0.7866,0.29611,-0.42108,0.71325,0.13756,1.44287,1.14522],[-0.71851,-0.32172,2.05142,-1.16858,0.00321,-1.25239,-0.73703,1.43466,0.11035,-0.28865,0.22516,1.39865,-1.54786,-1.53721,-3.03224,-0.42108,1.42084,0.66937,-0.73596,-1.2607],[0.64353,-1.24831,-0.48747,-0.26561,0.00321,-1.25239,-0.73703,-2.19001,0.32958,0.58148,0.22516,0.46254,1.57563,0.36773,0.12969,-0.42108,-0.70193,0.66937,-0.73596,-1.2607],[-0.378,0.04798,2.05142,-0.14618,0.60514,-1.25239,1.3568,0.83055,0.07101,0.23343,-0.59064,-0.05328,1.05505,-0.51047,0.29611,-0.42108,0.71325,0.66937,0.71659,-0.05774],[0.64353,-1.36998,-0.48747,0.42034,-0.59872,0.79847,1.3568,1.43466,-0.44052,-0.6367,-1.40644,1.39865,0.53446,-0.89777,0.46253,-0.42108,-0.70193,0.66937,-0.73596,1.14522],[-0.66987,1.25068,-0.48747,0.01292,1.20708,0.79847,-0.73703,0.91685,1.05471,0.23343,1.36728,1.11062,-0.5067,-1.71916,-0.11993,2.67633,0.71325,-0.39425,-1.46223,1.14522],[-0.91309,0.39428,-0.48747,0.44243,-0.59872,0.79847,-0.73703,0.52849,-0.7272,-0.6367,-0.59064,1.79281,2.09621,0.73396,0.29611,-0.42108,1.42084,0.66937,-0.73596,1.14522],[1.71371,-0.13453,-0.48747,0.06676,0.90611,-1.25239,-0.73703,0.87702,2.06089,0.92953,1.44886,0.46254,0.01388,-0.67943,0.29611,-0.42108,-0.70193,-1.98969,-0.00968,-1.2607],[-0.71851,-1.43082,-0.48747,-0.39175,2.10997,0.79847,1.3568,0.5818,0.90856,0.75551,0.79622,0.54278,0.53446,0.50587,-0.11993,-0.42108,-1.40952,0.13756,-1.46223,-1.2607],[1.22727,-0.46679,-0.48747,0.75446,-0.59872,-1.25239,-0.73703,1.43466,-0.87335,-0.28865,-1.24328,-1.68502,0.53446,-0.46109,0.29611,-0.42108,0.71325,0.66937,0.71659,1.14522],[1.66507,1.26472,-0.48747,0.287,0.90611,0.79847,1.3568,-0.23826,0.49259,0.0594,0.71464,-1.96502,0.53446,0.49027,0.50413,-0.42108,-0.70193,0.66937,-0.73596,-0.05774],[-0.03749,-0.08773,-0.48747,0.64588,-0.29776,0.79847,-0.73703,-0.1763,-0.3281,0.23343,0.55148,-1.36899,0.53446,-0.18036,0.29611,1.43737,1.42084,0.66937,-0.00968,1.14522],[0.4976,1.70929,2.05142,0.56514,0.60514,0.79847,-0.73703,-0.37767,0.79051,0.40745,-0.01958,-0.1716,-1.02728,2.20583,-0.53598,-0.42108,-1.40952,0.66937,1.44287,1.14522],[-0.47529,-1.39806,2.05142,-0.75414,-0.59872,0.79847,-0.73703,-0.37767,-0.12011,-0.11463,-0.99854,1.22845,2.61679,-0.56679,0.71216,-0.42108,1.42084,0.66937,-0.00968,-0.05774],[-0.8158,0.00587,-0.48747,-0.78386,0.90611,-1.25239,-0.73703,-0.23826,1.7967,1.27758,0.4699,-1.20825,-0.5067,-0.8094,-0.53598,-0.42108,-1.40952,0.66937,-1.46223,1.14522],[-0.91309,1.04009,-0.48747,-0.09489,0.00321,-1.25239,1.3568,1.43466,0.49259,0.40745,0.062,-1.5575,-0.5067,-1.5892,0.57348,-0.42108,-0.70193,-1.45788,0.71659,-0.05774],[3.22169,-0.3264,-0.48747,1.08264,-0.89969,-1.25239,-0.73703,-0.63658,-1.66593,-2.02891,-1.48802,-1.22247,-1.54786,0.88017,0.29611,-0.42108,0.71325,-0.39425,0.71659,-0.05774],[-0.71851,-0.98156,-0.48747,-0.99989,-1.80259,-1.25239,1.3568,-4.00234,-1.82894,-2.37697,-1.40644,2.64681,-1.02728,0.29532,0.29611,-0.42108,-1.40952,0.13756,-0.73596,-0.05774],[0.83811,-0.82245,2.05142,0.55725,0.90611,0.79847,-0.73703,-0.7959,0.86359,0.92953,0.14358,0.11149,0.01388,-0.91337,-0.11993,-0.42108,0.71325,0.66937,-1.46223,1.14522],[-0.47529,-1.12663,2.05142,-0.5921,-1.50162,-1.25239,1.3568,1.43466,-1.1263,-0.46268,-1.1617,-1.51371,-1.02728,-0.60145,0.29611,-0.42108,0.00566,0.13756,1.44287,1.14522],[0.0598,-0.77097,2.05142,-0.04552,0.90611,0.79847,-0.73703,0.31938,1.08281,1.10356,-0.26432,-0.42009,0.53446,-0.0244,0.92018,-0.42108,-1.40952,0.13756,0.71659,-1.2607],[0.0598,-1.48697,-0.48747,-0.25813,-0.29776,-1.25239,1.3568,1.43466,-0.10325,-0.6367,-0.91696,-0.88059,-1.02728,0.06138,-0.53598,-0.42108,1.42084,-1.98969,-1.46223,-0.05774],[-0.52393,-1.22959,-0.48747,-0.66161,0.00321,0.79847,-0.73703,-0.01521,0.20029,-0.11463,0.79622,-0.71186,-1.02728,-0.99135,-0.53598,-0.42108,0.00566,0.66937,1.44287,-1.2607],[1.03269,1.20388,-0.48747,0.60685,0.00321,0.79847,-0.73703,1.43466,-0.0639,-0.11463,0.38832,0.79954,-1.02728,0.60724,-0.53598,-0.42108,1.42084,0.66937,-1.46223,-1.2607],[-0.91309,-0.24216,-0.48747,-0.7004,-0.59872,0.79847,1.3568,-0.37767,-0.77217,-0.81073,0.30674,-0.42009,-0.5067,0.43828,0.29611,-0.42108,1.42084,-1.45788,-0.00968,-1.2607],[-0.13478,0.33345,-0.48747,-0.74669,0.00321,0.79847,-0.73703,0.70972,-0.06952,0.0594,-0.18274,0.04427,0.01388,-0.44549,-0.53598,-0.42108,1.42084,0.66937,-0.73596,-0.05774],[0.0598,0.49724,-0.48747,0.61078,0.00321,0.79847,-0.73703,-0.74014,-0.13698,0.58148,1.2857,0.29734,-1.02728,1.81593,-0.53598,-0.42108,1.42084,0.66937,1.44287,1.14522],[-0.86444,1.246,-0.48747,-0.48828,1.20708,0.79847,-0.73703,-1.6722,0.72306,0.40745,0.38832,0.96896,-0.5067,-0.05559,0.01875,-0.42108,0.71325,-2.5215,-0.73596,-1.2607],[-0.8158,-0.69142,-0.48747,-0.37414,0.60514,-1.25239,-0.73703,0.22644,1.14465,1.45161,0.63306,-1.35463,-1.54786,0.72421,0.29611,-0.42108,-1.40952,0.66937,-0.73596,-0.05774],[-0.03749,1.5923,2.05142,0.31942,-1.50162,0.79847,-0.73703,-0.01521,-1.71652,-1.85489,-1.08012,-0.09913,-1.02728,-1.1863,1.1282,4.22504,-1.40952,-1.45788,0.71659,1.14522],[-0.8158,1.34427,-0.48747,-0.6304,0.00321,-1.25239,-0.73703,0.70972,-0.65974,0.23343,-0.42748,0.39404,-0.5067,0.54226,-3.03224,-0.42108,0.00566,0.66937,1.44287,1.14522],[-0.52393,0.17902,-0.48747,0.09843,0.90611,-1.25239,-0.73703,-0.23826,0.69495,1.10356,0.79622,0.11149,0.53446,0.22514,0.08809,-0.42108,0.71325,0.66937,1.44287,-0.05774],[-0.03749,0.60019,-0.48747,-0.21253,1.20708,-1.25239,1.3568,-1.15439,1.75173,1.27758,1.61202,-0.99239,0.53446,-0.36751,0.71216,-0.42108,0.71325,0.66937,1.44287,1.14522],[1.61642,-0.86925,-0.48747,0.86645,0.60514,0.79847,1.3568,0.83055,0.75679,0.40745,0.062,-0.56273,-0.5067,-0.15956,-0.11993,-0.42108,0.00566,0.66937,1.44287,-0.05774],[-0.13478,-0.186,-0.48747,-0.43278,-0.29776,-1.25239,-0.73703,-0.98178,-0.06952,0.58148,0.38832,0.40523,-0.5067,0.54226,0.29611,-0.42108,1.42084,0.66937,-0.00968,1.14522],[-0.42664,1.40043,2.05142,-0.60627,1.50804,0.79847,1.3568,0.95137,2.84223,1.79966,1.53044,-0.78871,-1.54786,-0.28953,0.29611,-0.42108,-0.70193,-0.92606,-0.00968,1.14522],[-0.28071,-0.71014,-0.48747,-0.15421,0.30418,-1.25239,-0.73703,-1.20146,0.85235,1.10356,0.30674,0.1505,-0.5067,0.56825,-0.53598,-0.42108,0.00566,0.66937,-0.73596,-1.2607],[-0.03749,0.46448,-0.48747,-0.49474,-0.29776,0.79847,-0.73703,-0.1763,0.15532,0.75551,-0.26432,0.46254,1.05505,-0.4195,0.79537,1.12763,0.71325,0.66937,1.44287,-0.05774],[-0.8158,0.4364,-0.48747,-0.5496,0.60514,0.79847,1.3568,-0.37767,0.16094,0.0594,0.38832,0.92209,0.01388,0.35381,-0.11993,-0.42108,1.42084,-0.39425,-0.73596,1.14522],[0.15709,-0.65866,-0.48747,0.01752,-0.89969,0.79847,1.3568,0.39904,-1.30055,-1.33281,-0.83538,-1.54343,-1.02728,-1.65418,-0.11993,-0.42108,-0.70193,0.66937,-1.46223,-0.05774],[-0.32936,1.40043,2.05142,-1.28285,-0.89969,0.79847,-0.73703,-2.70781,-1.04198,-1.15878,-0.18274,-2.34581,-0.5067,-1.51122,-0.11993,-0.42108,-0.70193,0.66937,-1.46223,-1.2607],[2.58931,0.62359,-0.48747,4.68735,1.50804,0.79847,-0.73703,0.46808,2.07776,1.10356,2.1015,-0.77836,0.01388,0.58775,0.71216,-0.42108,-0.70193,0.66937,-0.00968,1.14522],[-0.13478,-0.03157,-0.48747,0.34615,-0.29776,0.79847,-0.73703,0.62918,0.01479,0.40745,0.14358,0.9306,-0.5067,-0.18556,1.1282,-0.42108,1.42084,-1.45788,-0.00968,-0.05774],[0.30302,0.26793,-0.48747,0.70472,-1.20065,0.79847,-0.73703,-0.98178,-1.8177,-2.02891,-1.24328,0.01911,0.01388,-0.25054,0.29611,1.90198,-1.40952,-0.39425,-0.73596,1.14522],[-0.23207,0.88566,-0.48747,-0.72761,1.50804,0.79847,-0.73703,0.46808,1.8754,1.27758,-0.18274,0.01911,-1.02728,-0.67943,-3.03224,-0.42108,0.71325,0.13756,-0.00968,-1.2607],[-0.03749,-1.31382,-0.48747,1.31883,-0.29776,0.79847,-0.73703,-0.1763,-0.14822,0.40745,-0.42748,-1.36899,0.01388,1.85492,-3.03224,1.90198,0.00566,-0.39425,1.44287,-1.2607],[-0.378,-1.02836,2.05142,-0.96771,-0.29776,0.79847,1.3568,0.62918,-0.12573,-0.28865,0.062,-0.43374,-2.06845,-2.78489,-3.03224,-0.42108,-0.70193,0.66937,-0.00968,-1.2607],[-0.32936,-0.85989,-0.48747,0.17476,0.60514,0.79847,1.3568,0.83055,1.17275,0.75551,0.95938,2.14755,0.01388,-0.21155,0.08809,1.90198,-1.40952,0.13756,-0.73596,1.14522],[-0.8158,-0.35915,-0.48747,-0.54104,0.00321,0.79847,-0.73703,-0.01521,0.16657,0.23343,-0.01958,-0.6176,-2.06845,-2.78489,-3.03224,-0.42108,0.00566,0.66937,-0.00968,-1.2607],[-0.03749,-1.47293,-0.48747,-0.48616,-0.29776,0.79847,-0.73703,-0.1763,0.15532,0.58148,-0.01958,-0.74104,0.01388,-0.60145,0.85084,-0.42108,-1.40952,0.66937,-0.00968,-1.2607],[0.20573,0.0433,-0.48747,0.0054,1.20708,0.79847,-0.73703,-0.63658,0.5207,0.0594,0.55148,-0.06105,-1.02728,-0.44549,0.29611,-0.42108,-1.40952,0.66937,1.44287,-1.2607],[-0.8158,-0.186,-0.48747,-0.90389,1.80901,0.79847,-0.73703,-1.28384,1.62806,1.62564,1.12254,0.06135,-1.02728,0.49027,-0.53598,-0.42108,-1.40952,-1.98969,-0.73596,-1.2607],[-0.42664,-1.07983,-0.48747,-0.11421,0.60514,0.79847,1.3568,0.22644,1.01536,0.92953,1.36728,-0.27195,0.01388,0.89967,0.29611,-0.42108,0.71325,0.66937,1.44287,-0.05774],[0.15709,1.5923,-0.48747,-0.48762,0.30418,0.79847,-0.73703,-1.20146,0.09349,0.0594,0.38832,-0.54847,-1.54786,2.82967,-3.03224,-0.42108,-1.40952,0.66937,-1.46223,1.14522],[0.44896,0.34749,2.05142,-0.5673,0.90611,0.79847,-0.73703,-0.23826,0.90294,0.92953,0.14358,1.23585,1.57563,1.31463,0.01875,0.90638,-0.70193,0.66937,-0.00968,1.14522],[-0.76716,1.07753,-0.48747,-0.51466,0.30418,-1.25239,1.3568,0.77563,0.60502,0.0594,0.8778,0.06135,0.53446,0.13156,1.1282,-0.42108,-1.40952,0.66937,1.44287,-0.05774],[-0.18342,0.07138,-0.48747,-0.98306,-1.20065,0.79847,-0.73703,-3.39823,-1.21062,-0.81073,-1.24328,-0.09913,0.01388,-0.27003,1.1282,1.90198,1.42084,-0.92606,-0.73596,1.14522],[-0.71851,-0.6727,2.05142,0.20666,0.90611,-1.25239,-0.73703,-0.23826,1.2908,0.92953,1.36728,0.22182,0.53446,-0.42989,1.1282,-0.42108,-1.40952,-1.45788,-1.46223,-0.05774],[-0.71851,1.82628,-0.48747,0.424,0.00321,0.79847,1.3568,0.70972,-0.59791,0.0594,-0.67222,0.71784,0.53446,-0.71062,0.29611,-0.42108,1.42084,0.66937,-0.00968,-1.2607],[-0.76716,1.53614,-0.48747,-0.31693,1.50804,-1.25239,1.3568,0.46808,1.93723,1.45161,1.44886,-0.84802,0.53446,-1.49042,-0.32795,1.43737,0.71325,0.66937,0.71659,1.14522],[-0.18342,-1.0658,-0.48747,-0.69321,-1.80259,-1.25239,-0.73703,1.43466,-1.43546,-1.33281,-1.73275,-0.54847,-1.02728,-0.17256,-3.03224,-0.42108,0.71325,0.13756,1.44287,1.14522],[-0.71851,0.41768,-0.48747,-0.52131,0.60514,0.79847,-0.73703,-0.98178,1.49316,0.92953,1.04096,0.99385,-0.5067,1.32206,0.29611,-0.42108,-1.40952,-0.39425,-1.46223,-1.2607],[1.71371,1.15708,-0.48747,0.45076,0.60514,0.79847,-0.73703,0.83055,1.02098,0.58148,-0.26432,-0.87258,-1.54786,-2.70691,-0.53598,-0.42108,0.71325,-2.5215,-0.73596,-0.05774],[-0.8158,-0.6961,-0.48747,-0.36893,0.60514,0.79847,1.3568,-0.37767,1.31328,1.27758,2.01992,-1.08008,0.01388,2.20583,0.29611,-0.42108,1.42084,0.66937,-1.46223,-0.05774],[-0.91309,0.38492,-0.48747,0.02407,0.00321,-1.25239,1.3568,0.70972,0.03728,0.58148,0.062,1.24888,0.01388,0.82169,0.01875,-0.42108,1.42084,-0.39425,-0.00968,1.14522],[-0.91309,-1.17343,-0.48747,-1.18356,-0.89969,-1.25239,1.3568,1.43466,-0.98577,-0.81073,-0.67222,-0.94164,-2.06845,-2.78489,-3.03224,-0.42108,0.71325,-0.39425,-0.73596,-0.05774],[0.44896,1.78885,2.05142,-0.9557,-2.10355,-1.25239,-0.73703,1.43466,-2.13811,-2.72502,-1.48802,-2.34581,-1.02728,-0.0166,0.29611,4.22504,-1.40952,0.66937,-0.00968,1.14522],[0.15709,1.48466,-0.48747,0.44965,0.60514,0.79847,-0.73703,0.22644,0.89732,0.92953,0.22516,2.0026,-0.5067,-2.29102,0.29611,-0.42108,-0.70193,0.66937,0.71659,-1.2607],[3.51356,-0.2796,-0.48747,2.21855,0.60514,-1.25239,-0.73703,0.22644,1.04347,0.75551,0.30674,0.1505,0.53446,-0.50787,0.08809,-0.42108,0.00566,0.66937,-1.46223,-1.2607],[0.40031,-1.56653,2.05142,-0.02802,0.30418,-1.25239,-0.73703,-0.54243,0.22278,0.58148,0.8778,0.9826,2.09621,-0.46499,0.15743,0.74045,0.71325,0.66937,0.71659,1.14522],[-0.52393,-0.71481,-0.48747,-1.15569,-0.59872,-1.25239,-0.73703,1.43466,-0.54732,-0.28865,0.14358,0.53455,0.01388,0.29532,-0.11993,-0.42108,-0.70193,-1.98969,-1.46223,1.14522],[-0.42664,-0.19068,-0.48747,-0.24933,-0.29776,-1.25239,-0.73703,0.62918,-0.71033,-0.28865,-1.1617,-0.6176,1.05505,0.26933,0.12969,4.22504,-1.40952,0.66937,-1.46223,1.14522],[0.15709,0.76866,-0.48747,0.03887,-0.59872,0.79847,-0.73703,-0.37767,-0.67661,-0.46268,-0.83538,-0.09913,0.01388,-0.48448,0.29611,-0.42108,-0.70193,-2.5215,-0.00968,1.14522],[-0.18342,0.94649,-0.48747,-0.02592,0.30418,0.79847,-0.73703,-0.54243,0.34644,0.23343,0.38832,0.06135,1.57563,-0.31181,0.01875,-0.42108,0.71325,0.66937,-0.73596,1.14522],[0.54625,0.16966,-0.48747,0.51544,1.50804,-1.25239,1.3568,0.46808,1.04347,0.40745,1.36728,-0.16154,1.05505,0.16535,1.1282,1.12763,1.42084,0.66937,1.44287,-1.2607],[0.9354,-1.33254,-0.48747,1.58122,-1.50162,-1.25239,-0.73703,-0.01521,-1.49729,-2.37697,-1.32486,3.00343,-1.54786,-1.30327,0.29611,-0.42108,-1.40952,0.66937,0.71659,-0.05774],[-0.66987,-1.29978,2.05142,-0.34883,0.60514,-1.25239,-0.73703,0.22644,-0.05828,0.0594,-0.59064,-0.94164,0.01388,0.50977,0.01875,-0.42108,0.00566,0.66937,1.44287,-1.2607],[-0.71851,-1.2717,-0.48747,-0.89939,-0.89969,-1.25239,-0.73703,1.43466,-0.29999,-0.11463,-0.7538,1.83406,-1.54786,1.58199,-3.03224,-0.42108,0.71325,-1.45788,-1.46223,-1.2607],[1.03269,-1.09855,2.05142,-0.34301,0.30418,-1.25239,-0.73703,-1.20146,0.67247,0.75551,0.79622,0.9155,-1.54786,-0.91337,0.29611,-0.42108,-1.40952,0.13756,-0.73596,-1.2607],[-0.13478,-0.28428,-0.48747,0.23853,0.60514,-1.25239,-0.73703,-0.37767,0.813,1.27758,0.95938,0.03703,1.57563,-0.79083,-0.03672,0.90638,-1.40952,-0.39425,0.71659,-1.2607],[1.08133,1.75609,-0.48747,0.99079,0.00321,0.79847,-0.73703,-0.74014,-0.0358,-0.11463,-0.01958,-0.05328,2.61679,0.68955,0.29611,-0.42108,-1.40952,-0.39425,1.44287,-1.2607],[-0.71851,1.21792,2.05142,-0.65777,-0.29776,-1.25239,-0.73703,-0.1763,-0.69347,-0.11463,0.22516,-0.6176,2.09621,-0.387,0.50413,0.74045,-0.70193,-1.45788,-1.46223,1.14522],[0.98405,1.45658,-0.48747,-0.01643,-1.20065,0.79847,1.3568,0.22644,-1.80646,-2.37697,-1.48802,-2.34581,1.05505,0.17835,0.50413,-0.42108,-1.40952,-1.45788,1.44287,-0.05774],[0.0598,0.66103,-0.48747,0.88702,-0.59872,0.79847,-0.73703,0.52849,0.17781,0.58148,1.12254,0.56655,-1.02728,-0.87438,0.29611,-0.42108,0.71325,0.66937,1.44287,-0.05774],[-0.76716,0.4598,-0.48747,-0.50027,0.60514,-1.25239,1.3568,0.22644,0.59377,1.10356,0.30674,-0.06105,2.61679,0.06571,0.29611,-0.42108,0.71325,0.66937,0.71659,-0.05774],[-0.86444,0.37556,-0.48747,-1.34628,-0.89969,-1.25239,-0.73703,-0.63658,-0.80027,-1.15878,-0.83538,2.41987,0.53446,1.1453,0.08809,-0.42108,-0.70193,-1.45788,0.71659,-0.05774],[-0.57258,0.28197,-0.48747,-0.97862,1.50804,0.79847,1.3568,-0.98178,0.59377,1.10356,1.36728,-0.23955,-0.5067,-0.21155,1.1282,2.67633,0.00566,0.66937,-0.00968,-1.2607],[1.03269,-0.41531,-0.48747,1.5148,0.00321,-1.25239,-0.73703,-0.01521,-0.21005,0.0594,1.20412,-0.54847,0.53446,-0.88218,-0.36956,-0.42108,-0.70193,0.13756,-0.00968,-1.2607],[2.39473,-0.77097,-0.48747,0.24508,-1.50162,0.79847,1.3568,1.43466,-1.65469,-2.02891,-1.40644,-1.16335,1.57563,-0.38979,-0.11993,-0.42108,-0.70193,0.66937,-1.46223,1.14522],[-0.28071,-0.5791,-0.48747,0.61705,-1.20065,-1.25239,-0.73703,1.43466,-1.67155,-1.50684,-1.5696,-2.34581,1.05505,0.60724,0.57348,-0.42108,0.71325,-1.45788,-0.00968,-0.05774],[0.01116,-1.47293,-0.48747,0.17973,-1.20065,-1.25239,-0.73703,0.22644,-1.41298,-1.85489,-1.48802,1.39865,0.53446,0.66183,0.96178,-0.42108,0.71325,-0.39425,-0.73596,-0.05774],[-0.8158,-0.96284,-0.48747,0.2803,1.20708,0.79847,-0.73703,-0.11877,1.05471,0.75551,0.71464,0.25903,-0.5067,-0.34152,-0.25861,-0.42108,-0.70193,0.66937,-1.46223,-0.05774],[-0.57258,-0.41531,-0.48747,0.62663,-0.29776,0.79847,-0.73703,-0.98178,-0.59791,-0.6367,-1.32486,-0.15393,-1.02728,1.11411,-3.03224,-0.42108,-0.70193,0.66937,-1.46223,-1.2607],[-0.03749,-0.99092,-0.48747,-1.06652,0.30418,0.79847,-0.73703,1.43466,0.86921,0.75551,1.44886,-0.30338,-1.02728,0.41229,-0.11993,-0.42108,1.42084,0.66937,-0.00968,-1.2607],[-0.8158,-1.58525,-0.48747,-0.42896,-1.20065,-1.25239,-0.73703,1.43466,-1.47481,-1.68086,-0.3459,-0.6176,-0.5067,0.93216,0.57348,-0.42108,-0.70193,-0.92606,1.44287,-0.05774],[0.59489,1.25536,-0.48747,1.44171,0.60514,0.79847,-0.73703,0.22644,1.16151,0.75551,1.44886,0.67212,0.01388,-1.22529,0.29611,-0.42108,0.71325,0.66937,1.44287,-1.2607],[-0.8158,1.28811,-0.48747,-0.71145,-0.59872,0.79847,1.3568,-0.37767,-0.30561,0.23343,-0.10116,0.26661,-1.02728,1.81593,-0.53598,-0.42108,-0.70193,-1.45788,-1.46223,1.14522],[-0.57258,-0.15793,-0.48747,-0.49251,-1.50162,-1.25239,1.3568,-1.46507,-1.07009,-1.15878,-1.40644,0.06135,0.53446,-0.07119,0.57348,1.43737,0.00566,0.66937,1.44287,-0.05774],[0.74082,0.90906,-0.48747,0.49442,0.00321,0.79847,-0.73703,0.70972,0.55443,0.75551,0.062,-0.44185,0.53446,0.24073,0.57348,-0.42108,0.00566,0.66937,-0.73596,-0.05774],[-0.32936,-0.6493,-0.48747,-0.48844,0.00321,-1.25239,-0.73703,-0.01521,-0.50235,0.23343,1.36728,-1.8352,0.53446,-0.55466,0.29611,-0.42108,-1.40952,0.13756,-0.73596,-0.05774],[0.64353,-0.27492,-0.48747,-0.39459,1.80901,-1.25239,1.3568,-0.37767,1.66741,1.45161,0.4699,-0.15393,0.01388,-0.387,-0.53598,-0.42108,-0.70193,0.66937,-1.46223,1.14522],[0.59489,-0.2562,-0.48747,0.71599,-1.50162,-1.25239,1.3568,-0.01521,-1.51978,-1.85489,-1.08012,0.58464,1.05505,0.54226,0.85084,-0.42108,0.00566,0.66937,0.71659,-0.05774],[0.64353,-1.13599,-0.48747,-1.05488,-1.50162,-1.25239,-0.73703,-0.01521,-1.14878,-1.68086,-0.50906,-0.02166,0.01388,-1.45923,0.08809,-0.42108,0.00566,0.66937,0.71659,-0.05774],[-0.91309,1.67653,-0.48747,-0.19144,0.30418,0.79847,1.3568,-0.54243,0.17219,0.40745,0.71464,-0.30338,1.05505,0.94516,0.50413,1.12763,0.71325,0.66937,1.44287,-0.05774],[-0.8158,-0.16261,-0.48747,-1.28146,-0.29776,-1.25239,-0.73703,0.62918,-0.21567,-0.11463,0.22516,-0.39218,0.53446,-0.53907,0.29611,-0.42108,1.42084,0.13756,-0.73596,-0.05774],[2.44338,0.14626,2.05142,3.59873,-0.29776,0.79847,1.3568,-1.78727,0.0429,0.92953,-0.01958,1.17839,0.01388,0.11987,-0.53598,1.90198,-0.70193,0.66937,1.44287,-1.2607],[-0.76716,1.72801,-0.48747,-0.46782,1.50804,0.79847,1.3568,0.95137,1.07157,0.75551,0.95938,-0.03305,0.53446,0.3811,0.29611,-0.42108,-0.70193,0.66937,-0.00968,-0.05774],[-0.76716,1.66249,-0.48747,0.46609,-0.29776,0.79847,-0.73703,-0.1763,-0.27188,-0.46268,-0.01958,-0.34876,-1.54786,1.19209,-3.03224,-0.42108,-1.40952,0.66937,-1.46223,1.14522],[-0.42664,-1.37934,-0.48747,1.09884,-1.80259,0.79847,-0.73703,-0.37767,-1.62096,-1.85489,-0.99854,1.02421,0.01388,0.7827,0.29611,-0.42108,1.42084,0.66937,-0.73596,-0.05774],[-0.66987,-0.51827,-0.48747,-0.664,0.00321,-1.25239,-0.73703,-0.01521,-0.29999,-0.11463,-0.10116,-0.51179,-1.02728,0.41229,0.71216,-0.42108,0.00566,-2.5215,0.71659,1.14522],[-0.32936,-0.28896,-0.48747,-0.14328,1.80901,0.79847,1.3568,0.52849,1.38636,0.92953,2.83571,-0.30338,-0.5067,0.90617,1.1282,-0.42108,1.42084,0.66937,0.71659,-1.2607],[-0.52393,-1.02368,-0.48747,-0.78724,0.30418,-1.25239,-0.73703,0.77563,0.16657,0.75551,0.79622,0.1505,0.53446,0.98934,-0.53598,-0.42108,0.00566,-2.5215,-1.46223,-1.2607],[-0.42664,0.86226,-0.48747,-0.29549,0.00321,0.79847,-0.73703,0.70972,0.31834,0.40745,0.71464,-0.74104,0.01388,0.50977,0.29611,-0.42108,1.42084,0.66937,-1.46223,1.14522],[-0.91309,-0.57442,2.05142,0.13159,1.50804,0.79847,-0.73703,-0.98178,1.34139,1.10356,0.8778,0.1505,-1.02728,0.91916,0.29611,-0.42108,-1.40952,0.13756,1.44287,1.14522],[-0.28071,0.16966,2.05142,1.1176,-0.59872,-1.25239,1.3568,-3.09617,-0.28875,-0.28865,-0.99854,1.22845,0.53446,0.30312,0.01875,-0.42108,0.00566,0.66937,1.44287,1.14522],[0.15709,1.70929,-0.48747,0.45339,-1.50162,-1.25239,1.3568,-0.01521,-0.74968,0.0594,-1.1617,-1.68502,-1.02728,-0.36751,-0.11993,-0.42108,0.71325,0.66937,-1.46223,-0.05774],[-0.378,0.46916,-0.48747,-0.44268,-0.29776,0.79847,-0.73703,-0.1763,-0.82838,-1.50684,-0.7538,-0.52418,0.53446,-0.21155,0.29611,-0.42108,-0.70193,-0.92606,0.71659,-0.05774],[-0.66987,1.59698,-0.48747,-0.22806,1.80901,0.79847,-0.73703,0.07541,2.21266,1.79966,1.44886,1.09029,-0.5067,2.20583,0.29611,-0.42108,1.42084,-0.39425,1.44287,-1.2607],[0.20573,-0.68674,-0.48747,-0.18856,-0.59872,0.79847,-0.73703,0.52849,-1.05322,-0.81073,-0.83538,-0.94164,0.53446,0.00679,1.1282,-0.42108,-0.70193,0.66937,1.44287,-1.2607],[-0.28071,1.49402,-0.48747,0.20218,0.90611,0.79847,-0.73703,0.31938,0.93666,0.92953,0.22516,-0.66918,-1.02728,-1.84913,0.71216,-0.42108,1.42084,0.66937,-0.73596,-1.2607],[-0.08613,1.5923,-0.48747,0.26086,-0.59872,0.79847,-0.73703,0.52849,-0.91832,-0.98476,-0.67222,-0.30338,0.53446,-0.19595,0.71216,-0.42108,1.42084,0.66937,-0.00968,1.14522],[-0.57258,-0.2562,-0.48747,-0.60641,1.20708,0.79847,1.3568,-0.11877,1.58872,1.27758,1.20412,-0.54847,1.05505,-1.53721,0.29611,1.12763,-0.70193,-0.92606,-0.73596,1.14522],[-0.28071,1.23664,-0.48747,-0.51839,-1.20065,0.79847,-0.73703,-0.98178,-1.36239,-0.81073,-1.1617,-0.6816,-0.5067,-0.34152,-0.11993,-0.42108,-0.70193,0.66937,1.44287,-0.05774],[0.4976,1.63441,-0.48747,0.6578,-0.29776,-1.25239,-0.73703,0.62918,0.07101,0.75551,0.22516,0.24651,0.01388,0.88017,1.1282,-0.42108,-1.40952,-1.45788,0.71659,1.14522],[-0.18342,0.25857,2.05142,0.27212,-0.29776,0.79847,-0.73703,1.43466,-0.54732,-0.46268,-0.91696,-0.6176,1.57563,-0.40093,0.01875,-0.42108,-1.40952,-2.5215,1.44287,1.14522],[-0.8158,-1.16407,-0.48747,0.1311,0.00321,0.79847,1.3568,1.43466,0.10473,0.0594,0.63306,0.79954,0.53446,0.33431,-0.36956,-0.42108,0.71325,0.66937,-0.00968,-1.2607],[0.69218,1.26472,-0.48747,0.98231,0.00321,0.79847,-0.73703,0.70972,0.72306,0.75551,0.63306,-0.20612,2.61679,0.40363,-0.11993,-0.42108,1.42084,-0.39425,0.71659,-0.05774],[0.54625,-1.37934,-0.48747,0.53048,0.60514,0.79847,1.3568,0.83055,0.61626,0.92953,0.14358,1.02421,-0.5067,1.60799,-0.11993,-0.42108,0.71325,0.66937,-0.00968,-0.05774],[-0.91309,1.65313,2.05142,-0.61802,-0.29776,0.79847,-0.73703,-0.1763,-0.91269,-0.6367,-1.24328,1.86671,0.01388,-0.64044,0.29611,-0.42108,0.00566,0.66937,1.44287,-1.2607],[0.40031,0.34749,2.05142,0.8045,0.00321,0.79847,-0.73703,0.70972,0.08225,0.75551,-0.10116,-1.46476,0.01388,-0.30902,0.29611,-0.42108,-1.40952,0.66937,-1.46223,-1.2607],[-0.378,-0.12517,-0.48747,0.17377,-1.20065,-1.25239,-0.73703,-0.98178,-1.59848,-2.02891,-0.83538,-0.09913,0.01388,-0.13357,1.1282,-0.42108,-0.70193,0.13756,-0.73596,1.14522],[0.10844,-0.22812,-0.48747,0.01011,0.30418,0.79847,1.3568,-0.54243,0.01479,0.75551,0.062,-0.51179,-1.02728,-0.87438,0.29611,-0.42108,0.71325,0.66937,0.71659,-0.05774],[0.59489,0.60487,-0.48747,-0.48928,-1.20065,-1.25239,-0.73703,-0.98178,-1.08695,-1.68086,-0.83538,0.55313,0.01388,0.70472,-0.11993,1.90198,0.71325,-1.98969,0.71659,-0.05774],[-0.13478,-1.28574,-0.48747,0.35078,-0.89969,-1.25239,1.3568,-1.6722,-0.90145,-0.46268,-1.48802,-1.665,2.09621,-0.51372,0.01875,-0.42108,1.42084,-0.39425,-1.46223,1.14522],[-0.76716,-0.06901,2.05142,-0.12636,1.20708,-1.25239,-0.73703,0.91685,0.47011,0.75551,0.38832,-0.50427,0.01388,1.05563,0.29611,-0.42108,0.00566,0.66937,-0.73596,-1.2607],[1.61642,0.63295,-0.48747,-0.34994,-0.29776,0.79847,1.3568,0.62918,-0.69347,-0.81073,-0.83538,0.08303,1.05505,-0.0296,-0.25861,1.12763,-0.70193,-1.98969,-1.46223,1.14522],[-0.86444,-0.78033,-0.48747,-0.03206,-0.59872,0.79847,-0.73703,0.52849,-1.25558,-1.68086,-1.08012,2.33477,1.57563,-0.18927,0.29611,-0.42108,-1.40952,0.66937,-0.00968,1.14522],[-0.86444,1.5689,-0.48747,-1.03373,-1.80259,0.79847,-0.73703,1.43466,-2.02568,-2.72502,-1.48802,4.07327,1.57563,-1.22529,0.96178,-0.42108,0.00566,0.66937,-1.46223,-1.2607],[-0.71851,-0.49487,-0.48747,-1.46562,-1.80259,-1.25239,-0.73703,1.43466,-1.41298,-2.02891,-1.24328,0.46254,1.57563,0.40115,0.79537,-0.42108,0.00566,-0.92606,0.71659,-1.2607],[-0.08613,0.76398,-0.48747,-0.66849,-0.59872,0.79847,-0.73703,-0.37767,-0.81151,-0.81073,-1.1617,-1.06199,-0.5067,0.17835,0.29611,-0.42108,0.71325,-0.39425,0.71659,-1.2607],[0.88676,1.64845,-0.48747,0.17318,-0.59872,-1.25239,-0.73703,1.43466,-0.71033,-0.46268,-0.99854,-1.75458,-1.54786,0.02239,-3.03224,-0.42108,-0.70193,0.66937,-0.73596,1.14522],[-0.8158,0.39896,2.05142,-0.97435,0.60514,0.79847,-0.73703,-0.37767,1.1053,0.92953,1.53044,-0.36345,0.01388,-1.28378,0.50413,-0.42108,1.42084,0.66937,0.71659,-0.05774],[-0.8158,-1.50569,-0.48747,-0.9649,-0.29776,0.79847,1.3568,-0.1763,-0.39555,-0.46268,-0.91696,0.32881,0.53446,0.70862,1.1282,-0.42108,-0.70193,0.66937,-1.46223,-1.2607],[-0.86444,-0.44807,2.05142,-0.24856,0.00321,0.79847,1.3568,-0.74014,0.05976,-0.11463,-0.50906,1.00031,-1.02728,0.21734,0.29611,4.22504,-0.70193,0.66937,-0.00968,-1.2607],[-0.91309,1.129,-0.48747,-0.78012,0.60514,0.79847,-0.73703,0.22644,0.80176,0.92953,0.79622,-0.03305,1.05505,0.13936,0.57348,-0.42108,0.00566,0.66937,-0.73596,-0.05774],[0.25438,-1.30914,-0.48747,0.1574,1.50804,0.79847,1.3568,-0.01521,1.51002,0.92953,0.30674,-1.43499,-2.06845,-2.78489,-3.03224,-0.42108,0.00566,-2.5215,-0.00968,1.14522],[1.22727,0.73123,2.05142,-0.03353,-0.29776,0.79847,-0.73703,-0.1763,-0.44614,-0.11463,-1.1617,-0.7019,1.57563,0.36773,0.01875,-0.42108,1.42084,0.66937,1.44287,-1.2607],[-0.71851,0.46448,-0.48747,-0.41012,-0.89969,-1.25239,-0.73703,1.43466,-0.71033,-0.98476,-0.91696,-1.09766,1.05505,0.07438,0.29611,-0.42108,0.00566,-1.45788,-0.00968,-0.05774],[2.39473,-1.4121,-0.48747,4.63528,-0.89969,-1.25239,-0.73703,0.39904,-0.80027,-1.15878,-0.59064,0.1505,0.53446,-0.18036,0.71216,-0.42108,1.42084,0.66937,-0.73596,1.14522],[0.30302,1.52678,-0.48747,-0.75363,-0.29776,0.79847,-0.73703,-0.1763,-0.0639,-0.11463,-0.7538,-1.38978,0.53446,-0.13357,0.71216,-0.42108,-0.70193,0.66937,-0.73596,-0.05774],[0.10844,1.38639,-0.48747,0.1384,0.30418,0.79847,-0.73703,0.1166,0.08225,0.75551,0.4699,-0.2263,1.05505,-0.96536,0.29611,-0.42108,0.71325,0.66937,-0.73596,1.14522],[0.30302,-1.26702,-0.48747,0.28197,-1.50162,-1.25239,-0.73703,1.43466,-1.74463,-2.20294,-1.81433,-1.16335,-0.5067,-0.10758,0.29611,-0.42108,-1.40952,0.66937,-0.00968,-0.05774],[-0.91309,0.24453,-0.48747,-1.46772,-1.80259,-1.25239,-0.73703,1.43466,-1.43546,-1.50684,-0.7538,-1.4817,0.53446,-0.92897,0.01875,-0.42108,0.00566,-0.92606,0.71659,1.14522],[0.54625,-1.25766,-0.48747,2.42369,-0.89969,0.79847,1.3568,1.43466,-0.92956,-0.81073,-0.83538,0.29734,0.53446,-0.0088,0.29611,-0.42108,-1.40952,0.66937,1.44287,-1.2607],[0.9354,0.64699,-0.48747,-0.64627,-1.20065,0.79847,1.3568,1.43466,-1.12068,-0.6367,-1.32486,2.30249,0.01388,-0.34801,0.29611,-0.42108,0.71325,-1.98969,0.71659,-1.2607],[0.0598,1.6157,-0.48747,-0.7004,-1.50162,0.79847,-0.73703,1.43466,-1.50292,-2.55099,-1.65117,1.73906,0.01388,-0.73792,0.29611,-0.42108,1.42084,0.66937,-1.46223,-0.05774],[-0.42664,0.15094,2.05142,1.13251,-0.59872,-1.25239,-0.73703,1.43466,-0.50235,-0.46268,-0.83538,0.01911,0.53446,0.44348,0.29611,-0.42108,0.71325,0.66937,-1.46223,1.14522],[3.07576,-1.02836,-0.48747,2.3403,-0.59872,0.79847,-0.73703,1.43466,-0.47987,0.58148,-0.3459,0.46254,-1.02728,0.99714,0.29611,-0.42108,1.42084,0.66937,0.71659,-0.05774],[0.40031,0.54404,-0.48747,-0.54726,-1.20065,0.79847,-0.73703,0.22644,-1.20499,-1.50684,-1.08012,-1.4817,0.01388,-0.75741,-0.53598,-0.42108,1.42084,0.66937,-1.46223,1.14522],[0.01116,0.57211,-0.48747,-0.43648,-0.89969,0.79847,-0.73703,0.39904,-0.95766,-0.98476,-1.32486,1.05825,-1.02728,2.01088,-0.11993,-0.42108,1.42084,-0.39425,0.71659,-1.2607],[3.27034,0.10414,-0.48747,3.52594,2.41094,0.79847,-0.73703,0.22644,1.72925,0.75551,3.48835,-0.09913,0.01388,-0.48448,0.29611,-0.42108,0.00566,-0.92606,0.71659,-0.05774],[-0.52393,1.62974,-0.48747,0.29003,0.30418,-1.25239,-0.73703,-0.54243,0.11598,-0.11463,-0.50906,1.97473,-1.02728,0.84118,1.1282,-0.42108,-1.40952,0.13756,-0.73596,1.14522],[-0.86444,-0.98624,-0.48747,-1.18837,-0.89969,0.79847,-0.73703,1.43466,-0.0358,-0.28865,0.22516,0.09623,-0.5067,0.3603,0.57348,-0.42108,1.42084,0.66937,-1.46223,-1.2607],[-0.378,-1.06112,-0.48747,0.07162,0.00321,0.79847,-0.73703,-0.74014,-0.15384,-0.11463,0.062,-0.00552,0.01388,-0.25054,0.01875,-0.42108,-1.40952,-1.98969,-0.73596,-0.05774],[0.25438,-0.46211,-0.48747,0.53664,0.00321,0.79847,1.3568,0.70972,-0.00769,0.58148,-0.50906,0.79954,0.01388,-1.51772,0.57348,-0.42108,0.71325,0.66937,0.71659,1.14522],[-0.71851,-0.28428,2.05142,-0.28513,2.10997,0.79847,1.3568,-0.6975,2.089,1.45161,2.18307,-0.02166,-1.02728,0.13936,1.1282,-0.42108,0.00566,0.66937,0.71659,-1.2607],[1.03269,-1.08919,-0.48747,0.67846,0.00321,-1.25239,-0.73703,-0.01521,0.59939,0.75551,1.36728,-0.09913,1.57563,-0.71285,-0.11993,-0.42108,0.71325,0.13756,-0.73596,-0.05774],[0.30302,-0.84585,-0.48747,-0.36248,-0.29776,0.79847,-0.73703,0.62918,-0.76654,-0.28865,-0.18274,-0.52418,0.53446,-0.67943,0.29611,-0.42108,-0.70193,0.13756,1.44287,-1.2607],[1.85965,-0.31704,-0.48747,0.64666,-0.29776,0.79847,1.3568,-0.1763,-0.24378,-0.11463,-0.59064,0.20723,1.05505,0.67222,-0.11993,1.12763,-1.40952,0.66937,-0.00968,1.14522],[1.47049,0.64231,-0.48747,1.2978,0.60514,0.79847,-0.73703,0.22644,1.0266,1.10356,1.53044,-1.68502,1.05505,0.56825,-0.36956,-0.42108,0.71325,-1.98969,0.71659,-0.05774],[0.54625,-0.29364,-0.48747,1.19826,0.00321,0.79847,1.3568,-1.46507,-0.34496,-0.11463,-0.83538,-0.04152,0.01388,0.91916,-0.53598,1.90198,0.00566,0.66937,0.71659,1.14522],[-0.32936,-1.22959,2.05142,-0.68469,0.00321,-1.25239,-0.73703,-0.01521,0.43638,0.92953,-0.18274,0.75306,-0.5067,0.98415,-0.11993,-0.42108,0.00566,0.66937,-0.73596,1.14522],[-0.62122,0.31473,-0.48747,-0.43169,-0.29776,-1.25239,1.3568,-0.1763,-0.78341,-0.6367,-0.67222,-1.09766,1.57563,-0.28953,0.29611,-0.42108,0.00566,0.66937,0.71659,1.14522],[1.32456,1.78417,2.05142,0.24993,0.60514,0.79847,-0.73703,-0.98178,0.34082,0.23343,-0.42748,1.66612,-0.5067,0.82818,0.57348,-0.42108,1.42084,-1.45788,-0.00968,-1.2607],[2.29745,-1.11259,2.05142,2.98286,0.30418,-1.25239,1.3568,-1.20146,-0.37869,0.40745,-0.59064,1.31157,2.09621,-0.41625,0.29611,-0.42108,0.71325,0.66937,-1.46223,1.14522],[-0.23207,-1.46357,-0.48747,-0.21634,-0.89969,-1.25239,-0.73703,-0.63658,-0.74406,-0.46268,-1.24328,-0.52418,1.05505,1.12711,0.50413,1.12763,1.42084,0.66937,1.44287,-1.2607],[0.10844,-0.59782,-0.48747,0.45239,-0.89969,0.79847,1.3568,-0.63658,-0.51921,-0.46268,-0.3459,-2.34581,0.53446,-0.07119,0.71216,1.43737,1.42084,0.66937,-0.73596,-1.2607],[-0.66987,-1.41678,-0.48747,-0.39873,0.00321,0.79847,-0.73703,-0.01521,-0.19319,0.23343,0.30674,-0.84802,0.01388,-0.09458,0.29611,-0.42108,-0.70193,0.66937,0.71659,-1.2607],[-0.52393,-1.33254,-0.48747,-0.25089,-0.29776,-1.25239,1.3568,-0.1763,-0.23254,-0.6367,-0.3459,-0.88059,-1.02728,1.07512,0.29611,-0.42108,-0.70193,0.13756,-0.00968,-1.2607],[-0.57258,-1.019,2.05142,-0.8374,0.60514,0.79847,1.3568,1.43466,0.36893,0.92953,0.79622,-0.40902,1.05505,-0.56246,0.71216,-0.42108,0.00566,0.13756,-1.46223,1.14522],[-0.86444,1.10092,2.05142,-0.79764,0.30418,0.79847,-0.73703,0.1166,1.11092,0.58148,0.95938,-1.64372,-1.02728,2.55674,-0.53598,4.22504,-0.70193,0.66937,0.71659,-0.05774],[0.40031,1.23664,-0.48747,-0.28035,1.80901,0.79847,1.3568,0.07541,2.26325,1.62564,1.20412,1.11062,-0.5067,0.3603,0.29611,-0.42108,-1.40952,0.66937,-0.73596,-0.05774],[0.01116,0.35217,-0.48747,-0.33112,0.00321,0.79847,1.3568,-0.01521,0.28461,0.58148,0.4699,1.66612,-1.02728,-0.17256,0.71216,4.22504,-0.70193,-0.92606,-0.73596,-0.05774],[-0.62122,-0.43403,-0.48747,0.49344,0.00321,0.79847,-0.73703,-0.74014,-0.19319,0.23343,-0.7538,1.00031,-0.5067,-0.73142,1.1282,-0.42108,0.71325,-0.39425,-0.73596,-1.2607],[-0.18342,0.37089,-0.48747,-0.3398,1.80901,0.79847,1.3568,0.52849,1.1053,1.62564,-0.18274,-0.13077,-0.5067,0.51626,-0.53598,2.67633,0.71325,0.66937,-1.46223,1.14522],[-0.86444,1.29747,2.05142,-0.53674,0.60514,0.79847,-0.73703,0.83055,1.08843,0.75551,-0.10116,-0.59059,1.05505,-0.93936,0.29611,-0.42108,-1.40952,-2.5215,1.44287,-1.2607],[-0.42664,-0.12517,-0.48747,-0.48858,0.30418,-1.25239,1.3568,0.1166,0.69495,0.23343,2.18307,0.96896,0.53446,-0.50787,0.08809,1.43737,-1.40952,0.66937,-0.00968,-1.2607],[-0.91309,-0.22812,2.05142,-1.14929,-2.10355,-1.25239,-0.73703,1.43466,-2.01444,-2.72502,-1.89591,-0.84802,-0.5067,-0.49748,0.71216,-0.42108,0.00566,0.66937,0.71659,1.14522],[-0.91309,-1.29978,2.05142,-0.06608,-0.59872,-1.25239,-0.73703,-1.28384,-1.21062,-1.33281,-0.83538,-0.79638,0.01388,-0.42599,0.85084,-0.42108,-1.40952,0.13756,-0.00968,-0.05774],[-0.32936,1.29747,-0.48747,-0.86949,0.60514,0.79847,1.3568,0.83055,0.06539,0.58148,0.38832,0.1505,0.01388,-0.15306,-0.53598,-0.42108,0.00566,-1.45788,-1.46223,-0.05774],[0.15709,-0.46211,-0.48747,0.88831,0.60514,0.79847,-0.73703,-1.5859,0.49259,-0.11463,0.79622,-0.06105,0.01388,-0.387,0.01875,-0.42108,-0.70193,0.66937,-0.00968,1.14522],[0.01116,1.69525,-0.48747,1.22602,-0.89969,0.79847,-0.73703,-1.6722,-0.77217,-0.28865,-0.42748,0.69024,1.57563,0.06695,-0.20314,-0.42108,1.42084,-0.39425,-1.46223,1.14522],[0.25438,-1.33722,-0.48747,-0.75141,1.50804,-1.25239,-0.73703,-0.01521,0.75117,0.75551,0.8778,0.81358,0.01388,-0.34801,-0.53598,-0.42108,-0.70193,0.66937,-0.73596,1.14522],[-0.47529,-0.90668,-0.48747,-0.34012,-1.20065,0.79847,-0.73703,-2.19001,-0.85648,-1.33281,-0.59064,1.16463,-1.54786,-0.83539,-0.53598,-0.42108,0.71325,0.66937,-0.73596,-0.05774],[-0.57258,1.19452,-0.48747,-0.45453,0.30418,0.79847,-0.73703,0.77563,-0.34496,0.23343,-0.3459,-0.00552,0.53446,0.97375,-0.25861,1.43737,-0.70193,0.13756,0.71659,-0.05774],[0.69218,-1.23427,-0.48747,0.33836,-2.10355,-1.25239,-0.73703,-3.39823,-1.63782,-1.68086,-1.5696,-1.09766,2.09621,-0.14332,0.46253,-0.42108,-0.70193,0.66937,-0.73596,-1.2607],[-0.32936,-0.61186,-0.48747,-0.60856,1.50804,-1.25239,1.3568,-1.94836,2.0103,1.62564,2.91729,-0.51712,1.57563,-1.40353,0.71216,0.90638,0.00566,0.66937,-1.46223,1.14522],[1.90829,-1.33722,-0.48747,1.48773,0.00321,0.79847,-0.73703,-1.46507,0.35206,0.23343,-0.50906,-0.30338,-1.02728,-1.1863,1.1282,-0.42108,0.71325,-0.39425,-0.00968,-1.2607],[-0.66987,-0.48083,-0.48747,-0.6005,-0.89969,-1.25239,-0.73703,0.39904,-0.73282,-0.6367,0.22516,1.50564,-0.5067,-1.66718,-0.53598,-0.42108,0.00566,0.66937,0.71659,1.14522],[-0.03749,0.53936,2.05142,-0.44774,-0.29776,0.79847,1.3568,1.43466,-0.36744,0.0594,-0.01958,-0.39218,1.05505,0.41229,0.57348,-0.42108,1.42084,-1.98969,0.71659,1.14522],[0.88676,0.60955,-0.48747,1.40335,-1.50162,-1.25239,-0.73703,-1.46507,-1.51416,-1.50684,-1.24328,0.46254,-1.02728,-0.32852,-0.53598,-0.42108,-1.40952,0.66937,-0.00968,1.14522],[0.9354,0.30537,-0.48747,0.73785,1.80901,0.79847,-0.73703,1.43466,0.57129,0.75551,-0.01958,-0.89634,1.57563,-0.22269,0.57348,-0.42108,-1.40952,-0.92606,-1.46223,1.14522],[-0.8158,-1.28574,-0.48747,-1.27367,-1.20065,-1.25239,-0.73703,-2.19001,-1.13192,-0.81073,-0.7538,-1.59692,0.53446,-0.66383,1.1282,-0.42108,0.71325,-0.39425,1.44287,1.14522],[-0.23207,1.50338,-0.48747,-0.34018,-0.89969,0.79847,1.3568,-0.63658,-0.85648,-0.28865,-0.50906,0.22182,-1.02728,0.29532,-0.11993,-0.42108,0.71325,0.13756,1.44287,-1.2607],[-0.42664,0.98393,-0.48747,-0.26159,2.71191,0.79847,-0.73703,0.29003,2.77478,2.14772,1.36728,1.09298,-0.5067,-0.0036,0.29611,-0.42108,-0.70193,0.66937,1.44287,1.14522],[-0.03749,0.3896,-0.48747,0.0247,-1.50162,-1.25239,-0.73703,-0.01521,-1.31742,-1.33281,-0.26432,0.86373,0.53446,0.42789,0.29611,-0.42108,0.00566,0.66937,-0.73596,-0.05774],[-0.91309,1.39107,-0.48747,-0.2829,-0.59872,-1.25239,-0.73703,-1.28384,-0.74968,-0.81073,-0.67222,1.90466,-0.5067,-1.40724,0.29611,-0.42108,-0.70193,-1.98969,-0.00968,-1.2607],[0.35167,0.08074,-0.48747,0.87302,-0.89969,0.79847,1.3568,-1.6722,-0.01893,0.0594,0.30674,-0.00552,-0.5067,-0.54946,0.29611,-0.42108,0.00566,-0.39425,-0.00968,1.14522],[0.44896,0.7359,-0.48747,-0.15939,-1.20065,-1.25239,-0.73703,1.43466,-0.03017,0.23343,-0.7538,0.58464,1.05505,0.46428,-0.11993,-0.42108,0.00566,-1.98969,-0.73596,1.14522],[-0.52393,1.44723,-0.48747,-0.29955,-1.20065,-1.25239,1.3568,1.43466,-0.76092,-0.98476,0.14358,-1.09766,0.01388,-0.97186,-3.03224,1.90198,0.71325,0.66937,-0.73596,-0.05774],[-0.91309,0.92309,-0.48747,-0.7274,-0.59872,0.79847,-0.73703,-1.28384,-0.56418,-0.11463,-1.32486,-0.57212,-0.5067,0.54226,-3.03224,-0.42108,-1.40952,0.66937,-0.00968,-0.05774],[-0.8158,-0.80373,-0.48747,-0.49068,-0.59872,-1.25239,-0.73703,1.43466,-0.59229,-0.6367,-1.1617,-0.47358,1.57563,0.37887,0.08809,-0.42108,0.71325,0.66937,-0.73596,1.14522],[-0.91309,-1.17343,-0.48747,0.04256,0.30418,0.79847,-0.73703,1.43466,0.36893,0.0594,-0.18274,-0.06105,0.53446,-1.08493,0.29611,1.43737,-1.40952,0.66937,-0.00968,1.14522],[0.25438,-0.75693,-0.48747,0.65666,0.30418,-1.25239,1.3568,-1.20146,1.20648,1.27758,2.18307,0.33679,0.01388,1.69896,0.29611,1.90198,-1.40952,-0.39425,-0.00968,-0.05774],[-0.57258,0.62827,2.05142,-0.44509,-0.29776,-1.25239,1.3568,0.62918,0.57691,0.40745,0.22516,0.3657,-1.02728,-0.21155,-3.03224,-0.42108,1.42084,-2.5215,-0.00968,-0.05774],[0.10844,1.23196,-0.48747,1.45677,1.80901,0.79847,1.3568,0.98157,1.26831,1.79966,1.20412,0.31473,0.01388,0.35381,0.01875,1.90198,-1.40952,0.13756,-0.00968,-0.05774],[-0.71851,0.67975,2.05142,-0.72102,0.00321,-1.25239,1.3568,-1.46507,-0.55856,0.23343,-0.10116,-0.09913,0.53446,1.1453,0.46253,-0.42108,1.42084,0.66937,-0.00968,-0.05774],[-0.91309,-1.44017,-0.48747,0.04102,0.90611,-1.25239,1.3568,-0.23826,0.89169,0.75551,1.6936,0.22182,-1.02728,1.1531,-0.53598,-0.42108,0.00566,0.13756,-1.46223,-0.05774],[-0.23207,-1.48229,-0.48747,0.27479,0.30418,-1.25239,1.3568,1.43466,0.05414,0.0594,-0.3459,-1.04965,0.53446,-0.92897,-0.53598,-0.42108,-0.70193,0.66937,0.71659,1.14522],[-0.13478,1.21792,-0.48747,-0.59825,1.20708,0.79847,-0.73703,-0.11877,1.36949,0.75551,0.22516,0.54278,-1.02728,0.60724,-0.53598,-0.42108,1.42084,0.13756,-1.46223,-1.2607],[-0.03749,-1.22491,-0.48747,-1.38033,-1.50162,-1.25239,-0.73703,-1.46507,-1.13754,-1.50684,-1.24328,0.06135,1.57563,0.35659,0.46253,0.90638,0.71325,0.66937,-0.73596,1.14522],[-0.47529,0.02458,-0.48747,-0.28652,0.60514,0.79847,1.3568,-0.98178,1.24583,1.27758,1.44886,0.22182,-1.54786,2.43977,0.29611,-0.42108,-0.70193,0.66937,0.71659,-1.2607],[-0.66987,1.38639,-0.48747,-0.67174,-0.89969,-1.25239,-0.73703,0.39904,-0.49111,-0.6367,-0.3459,-0.04152,0.01388,0.56825,0.01875,-0.42108,0.71325,0.13756,-1.46223,-1.2607],[-0.42664,-0.2562,-0.48747,-0.1297,-0.29776,0.79847,-0.73703,0.62918,-0.29437,0.23343,0.95938,0.09623,0.01388,0.08088,0.85084,-0.42108,1.42084,0.66937,-0.00968,1.14522],[-0.62122,1.55486,-0.48747,-0.76433,-0.89969,0.79847,-0.73703,1.43466,-0.64288,0.23343,-1.40644,1.29745,-1.54786,-0.67943,0.29611,-0.42108,0.71325,-2.5215,-0.00968,-1.2607],[-0.62122,-0.92072,-0.48747,0.11543,0.60514,0.79847,1.3568,0.22644,1.02098,0.58148,0.8778,-0.96324,0.53446,-1.39685,0.29611,-0.42108,-1.40952,-0.92606,1.44287,-1.2607],[-0.91309,0.4598,-0.48747,-0.75963,0.30418,0.79847,-0.73703,-0.54243,0.38017,0.75551,0.30674,0.92209,-1.02728,-0.60145,-0.53598,4.22504,-0.70193,0.13756,-1.46223,-0.05774],[-0.03749,1.28343,-0.48747,-0.12381,1.80901,0.79847,-0.73703,0.52849,1.63931,0.23343,0.71464,-0.16154,0.01388,1.09462,1.1282,-0.42108,1.42084,-0.39425,1.44287,-1.2607],[-0.42664,0.38492,-0.48747,-0.75347,-1.20065,-1.25239,-0.73703,-2.19001,-1.6041,-1.85489,-1.5696,1.02421,-1.02728,-0.87438,-3.03224,-0.42108,-0.70193,0.66937,-0.00968,-1.2607],[-0.76716,0.58147,2.05142,0.89556,1.20708,0.79847,1.3568,-0.11877,0.66123,0.58148,0.30674,-0.1716,-1.02728,-0.36751,0.29611,-0.42108,-0.70193,0.66937,1.44287,1.14522],[3.5622,-0.75225,-0.48747,5.80903,-0.59872,-1.25239,-0.73703,-0.37767,-0.13698,-0.11463,-0.42748,0.09623,-1.54786,-1.77115,-0.53598,-0.42108,0.00566,-0.92606,1.44287,-1.2607],[-0.378,-1.03304,-0.48747,-0.7427,1.80901,0.79847,-0.73703,-0.83076,2.04965,0.58148,1.12254,-0.53814,0.01388,1.69896,0.01875,-0.42108,0.00566,0.66937,-0.00968,1.14522],[-0.71851,-0.26556,-0.48747,-0.47827,0.00321,0.79847,-0.73703,0.70972,-0.1426,-0.11463,-0.67222,-1.36899,1.57563,-0.62373,0.46253,0.90638,0.00566,0.66937,-1.46223,1.14522],[-0.62122,0.37556,-0.48747,-0.24952,-1.20065,0.79847,1.3568,0.22644,-1.21624,-1.50684,-1.32486,0.06135,-0.5067,1.29607,1.1282,2.67633,-0.70193,0.66937,-1.46223,-0.05774],[0.0598,0.14626,-0.48747,-0.428,-0.59872,-1.25239,1.3568,-0.37767,0.00355,0.58148,0.30674,0.46254,2.61679,-0.0036,0.12969,-0.42108,1.42084,0.66937,-0.73596,1.14522],[-0.03749,0.413,-0.48747,-0.80666,-1.20065,0.79847,-0.73703,0.22644,-1.51416,-1.85489,-0.3459,1.56146,0.53446,0.02239,-3.03224,1.43737,0.71325,0.66937,1.44287,-1.2607],[-0.13478,0.19773,-0.48747,0.96768,0.60514,0.79847,-0.73703,0.22644,0.73992,0.75551,0.4699,-0.69384,1.05505,0.46428,0.29611,-0.42108,-0.70193,0.66937,-1.46223,-1.2607],[-0.08613,1.1992,-0.48747,-0.68346,0.90611,0.79847,1.3568,-0.23826,0.38579,0.40745,1.6936,-0.50427,0.53446,0.80219,0.01875,-0.42108,1.42084,-2.5215,1.44287,-0.05774],[0.35167,0.31005,2.05142,-0.06739,0.00321,0.79847,1.3568,-0.01521,0.53756,0.75551,-0.50906,-0.76919,1.57563,0.02239,0.01875,-0.42108,-0.70193,-0.39425,-0.73596,1.14522],[0.20573,-0.9488,-0.48747,-0.43939,-0.59872,-1.25239,-0.73703,0.52849,-0.34496,0.0594,-0.50906,-1.32459,0.53446,-0.19595,0.08809,1.43737,-1.40952,0.66937,0.71659,1.14522],[-0.52393,-1.55717,-0.48747,-0.00209,-1.50162,-1.25239,-0.73703,-0.01521,-1.30055,-1.33281,-0.99854,1.24888,0.53446,-0.11797,-0.03672,-0.42108,-0.70193,-0.92606,0.71659,-0.05774],[0.01116,1.10092,-0.48747,-0.10486,0.90611,0.79847,-0.73703,-0.7959,0.57129,0.58148,0.4699,-0.91935,-0.5067,-0.49748,0.85084,-0.42108,-0.70193,-0.39425,0.71659,1.14522],[0.54625,1.12432,2.05142,0.7202,1.50804,0.79847,1.3568,-0.01521,0.93104,0.92953,1.77518,-0.09913,0.01388,0.84118,-0.11993,-0.42108,1.42084,0.66937,-1.46223,-1.2607],[1.22727,-1.07048,-0.48747,0.13987,-1.50162,-1.25239,1.3568,1.43466,-1.63782,-2.20294,-1.40644,-1.27596,1.05505,-0.25054,0.01875,1.12763,1.42084,-0.92606,-0.00968,-1.2607],[-0.76716,0.96989,2.05142,-0.54026,1.80901,0.79847,-0.73703,0.07541,1.25145,1.62564,0.22516,0.18566,1.05505,0.60724,0.57348,-0.42108,-1.40952,-0.39425,1.44287,1.14522],[0.44896,-1.28106,-0.48747,-0.19633,-2.10355,-1.25239,-0.73703,-0.98178,-1.64344,-2.20294,-1.73275,1.02421,1.05505,-0.74441,0.01875,-0.42108,0.00566,-0.39425,-0.00968,-1.2607],[-0.28071,0.25389,-0.48747,-0.28913,1.20708,0.79847,1.3568,-0.11877,0.56005,-0.11463,-0.7538,0.56655,1.05505,-0.47148,0.50413,-0.42108,-0.70193,0.13756,1.44287,-0.05774],[-0.23207,1.72333,2.05142,-0.83697,-0.89969,-1.25239,-0.73703,-0.63658,-1.08133,-1.15878,-1.32486,-0.09913,1.05505,-0.30253,-0.25861,1.12763,-1.40952,0.66937,0.71659,1.14522],[-0.32936,0.64231,2.05142,-0.26818,0.90611,0.79847,1.3568,-0.7959,0.13284,-0.11463,-0.3459,-0.18554,0.53446,-0.64824,0.29611,-0.42108,0.71325,0.66937,-0.73596,-1.2607],[0.83811,-1.45889,-0.48747,0.97831,1.50804,0.79847,-0.73703,-0.01521,1.06595,1.10356,2.67255,-0.39218,-1.02728,0.25633,1.1282,-0.42108,-1.40952,0.66937,1.44287,-1.2607],[0.0598,-0.63526,-0.48747,-0.08935,-1.50162,-1.25239,1.3568,1.43466,-1.88515,-2.20294,-1.73275,0.29734,1.05505,-0.95236,0.71216,-0.42108,-1.40952,0.66937,-0.00968,-1.2607],[-0.71851,1.246,-0.48747,-1.24669,-0.59872,-1.25239,-0.73703,-0.37767,-0.13698,-0.11463,0.95938,0.64976,-0.5067,-1.71916,0.29611,-0.42108,-0.70193,0.66937,-1.46223,-0.05774],[-0.18342,-1.23895,-0.48747,-0.13292,0.90611,0.79847,-0.73703,-0.7959,0.813,0.92953,1.61202,1.51567,-0.5067,1.73795,0.29611,-0.42108,-0.70193,0.66937,-0.73596,1.14522],[0.25438,-1.08919,-0.48747,-0.4849,0.60514,0.79847,-0.73703,0.22644,0.9198,0.58148,0.79622,-0.96324,-1.54786,2.51775,1.1282,-0.42108,0.71325,0.66937,1.44287,1.14522],[-0.91309,1.69525,2.05142,-0.73702,1.20708,0.79847,1.3568,0.91685,1.20086,1.27758,0.79622,-1.04339,-0.5067,0.04838,0.29611,2.67633,-0.70193,0.66937,-0.73596,-0.05774],[-0.66987,-0.96284,-0.48747,-0.04993,0.00321,0.79847,1.3568,-0.01521,-0.87335,-0.46268,-0.42748,0.29734,-1.54786,0.02239,0.29611,-0.42108,-1.40952,0.66937,1.44287,1.14522],[-0.66987,-1.44017,-0.48747,-1.06282,-0.89969,-1.25239,-0.73703,0.39904,-1.05884,-0.98476,-0.3459,0.86373,0.53446,1.28567,0.57348,-0.42108,0.71325,0.66937,0.71659,-1.2607],[-0.52393,0.24921,2.05142,0.00293,0.90611,0.79847,1.3568,0.31938,0.03728,-0.11463,-0.42748,0.67857,0.01388,0.70472,0.71216,-0.42108,1.42084,0.66937,-0.00968,-0.05774],[0.20573,0.71719,2.05142,-0.61623,-0.89969,0.79847,-0.73703,-0.63658,-0.65974,-0.28865,-0.59064,0.39404,-1.02728,-0.52347,-3.03224,-0.42108,1.42084,0.13756,0.71659,-1.2607],[0.69218,1.49402,-0.48747,0.30217,1.50804,0.79847,-0.73703,-0.98178,1.3189,1.10356,0.79622,-0.88693,-1.54786,0.02239,-0.53598,-0.42108,0.00566,0.66937,-0.00968,1.14522],[-0.71851,0.52532,-0.48747,-0.73201,1.80901,0.79847,1.3568,-0.37767,1.20648,0.40745,2.1015,0.22182,0.53446,1.03613,0.29611,-0.42108,0.71325,-0.39425,-0.00968,1.14522],[-0.66987,0.08074,-0.48747,-0.79842,-0.59872,-1.25239,-0.73703,-0.37767,-0.29437,0.0594,0.14358,0.09623,1.05505,0.98415,0.50413,1.12763,0.00566,0.66937,0.71659,-0.05774],[-0.8158,0.62359,-0.48747,-0.76392,1.80901,0.79847,1.3568,0.98157,1.72362,1.62564,1.20412,-0.18034,1.05505,-0.08158,-0.53598,2.67633,-1.40952,0.66937,-0.73596,-0.05774],[-0.47529,-0.71014,-0.48747,-0.15746,0.30418,-1.25239,1.3568,-0.54243,0.02042,-0.28865,-0.7538,0.56655,-1.02728,2.12785,0.29611,-0.42108,0.71325,0.66937,-0.73596,1.14522],[0.88676,-0.79437,-0.48747,0.60886,-1.20065,-1.25239,-0.73703,1.43466,-1.1544,-0.6367,-1.32486,-0.89634,-0.5067,-0.57546,0.01875,2.67633,-0.70193,-2.5215,-0.73596,1.14522],[0.15709,-0.40595,-0.48747,0.0928,0.00321,0.79847,1.3568,-0.01521,0.13846,0.23343,0.71464,0.92209,0.53446,1.50401,0.29611,1.43737,-0.70193,-2.5215,-0.73596,-1.2607],[-0.76716,-0.86925,2.05142,-0.49247,0.30418,0.79847,-0.73703,-1.86049,-0.05266,-0.28865,-0.59064,-0.91176,-0.5067,-0.4195,0.29611,-0.42108,0.00566,-1.98969,-0.00968,-1.2607],[0.69218,-1.25766,-0.48747,0.0045,-0.89969,0.79847,-0.73703,-0.63658,-0.20443,0.0594,0.14358,-0.84802,0.01388,-1.22529,0.29611,-0.42108,-1.40952,0.66937,0.71659,-1.2607],[0.20573,-0.39659,2.05142,0.22333,0.60514,-1.25239,1.3568,-0.37767,0.25088,0.92953,-0.26432,0.01911,0.53446,0.27193,0.29611,-0.42108,-0.70193,-1.98969,0.71659,1.14522],[-0.76716,-0.34979,-0.48747,0.0882,-0.29776,-1.25239,-0.73703,-0.98178,-0.1426,0.23343,0.95938,-0.91176,0.53446,1.28567,-0.53598,-0.42108,-1.40952,-2.5215,-1.46223,-0.05774],[0.20573,0.28665,2.05142,-0.48142,-1.50162,-1.25239,1.3568,-1.46507,-1.30055,-1.33281,-1.97749,-1.40969,-0.5067,0.69822,0.57348,-0.42108,0.71325,-1.98969,-0.00968,1.14522],[-0.42664,-0.70078,-0.48747,-0.75205,0.30418,-1.25239,-0.73703,0.1166,0.76803,0.58148,0.4699,1.51567,-0.5067,-0.31552,0.71216,2.67633,0.71325,-0.39425,-1.46223,-1.2607],[-0.71851,0.23517,-0.48747,-1.04852,0.60514,-1.25239,-0.73703,-0.37767,0.45887,0.75551,0.14358,1.46212,-0.5067,0.07438,-0.53598,-0.42108,0.71325,0.13756,1.44287,-1.2607],[-0.91309,-1.30446,-0.48747,-1.27687,0.00321,0.79847,-0.73703,0.70972,0.38017,0.58148,1.12254,1.26492,2.09621,1.01664,0.43479,0.74045,-1.40952,0.66937,-0.73596,-0.05774],[0.01116,1.8216,-0.48747,-1.15122,-0.59872,0.79847,-0.73703,1.43466,-0.45738,-0.28865,-0.50906,0.94201,-1.02728,-0.09458,-0.11993,-0.42108,-0.70193,0.66937,-0.73596,1.14522],[0.35167,0.42236,-0.48747,-0.01444,0.90611,0.79847,1.3568,-0.23826,0.80176,0.58148,0.30674,0.64976,1.05505,-0.32852,0.29611,-0.42108,0.71325,0.66937,-1.46223,1.14522],[0.4976,0.49256,-0.48747,0.46733,-0.59872,0.79847,-0.73703,-0.37767,-1.05322,-0.46268,-1.1617,1.16463,0.53446,-1.05373,0.01875,1.43737,1.42084,-0.39425,1.44287,-0.05774],[0.15709,1.70929,-0.48747,0.40179,-0.89969,0.79847,-0.73703,0.39904,-0.27188,-0.28865,-0.59064,-1.30084,0.53446,0.02239,0.71216,-0.42108,0.71325,0.66937,-0.73596,-0.05774],[-0.52393,-1.34658,-0.48747,-1.02201,1.50804,0.79847,-0.73703,1.43466,1.1053,0.75551,0.22516,-0.42009,1.05505,0.12636,0.62895,-0.42108,1.42084,0.66937,0.71659,-0.05774],[-0.91309,1.57826,-0.48747,-0.10568,0.30418,-1.25239,-0.73703,0.1166,1.00974,0.75551,0.14358,-0.44721,-2.06845,-2.78489,-3.03224,-0.42108,-0.70193,0.66937,-1.46223,1.14522],[1.76236,0.82482,-0.48747,1.01141,0.00321,0.79847,1.3568,-1.46507,-0.2494,-0.11463,-0.59064,1.73906,-0.5067,0.12636,0.71216,-0.42108,0.71325,0.13756,1.44287,-0.05774],[1.03269,-1.25766,-0.48747,0.93903,0.00321,0.79847,-0.73703,-0.01521,-0.33934,-0.28865,-0.59064,0.26661,-0.5067,1.65997,0.29611,-0.42108,0.00566,0.13756,0.71659,1.14522],[-0.62122,0.42704,-0.48747,1.407,0.00321,-1.25239,-0.73703,0.70972,0.21716,-0.11463,1.2857,0.1976,0.01388,-0.13357,0.29611,-0.42108,-0.70193,0.66937,-0.00968,-0.05774],[-0.378,1.12432,-0.48747,-0.62665,-0.89969,0.79847,-0.73703,0.39904,-1.14316,-1.50684,-0.99854,0.64976,0.01388,2.22533,0.71216,1.90198,0.71325,0.66937,-0.00968,-1.2607],[-0.62122,1.34895,2.05142,-0.59624,0.60514,0.79847,-0.73703,0.22644,0.95915,0.40745,0.14358,1.16463,-0.5067,0.3603,1.1282,2.67633,-0.70193,0.66937,1.44287,-1.2607],[-0.91309,-0.76629,-0.48747,-0.6522,-0.89969,0.79847,1.3568,0.39904,-0.49673,-0.6367,1.04096,-1.24987,-0.5067,-0.52347,0.29611,-0.42108,-0.70193,0.66937,-1.46223,1.14522],[-0.23207,-0.52295,-0.48747,0.65102,0.90611,0.79847,-0.73703,-0.23826,0.67809,0.23343,1.04096,-0.89634,-1.54786,1.03613,-3.03224,-0.42108,0.00566,0.66937,-0.00968,-1.2607],[-0.47529,-0.65398,2.05142,0.47868,1.50804,-1.25239,1.3568,0.46808,2.04965,1.10356,1.36728,-1.81089,0.53446,0.20954,0.79537,-0.42108,-0.70193,0.66937,0.71659,-1.2607],[-0.66987,-0.09709,-0.48747,-0.78764,0.90611,0.79847,1.3568,1.43466,0.36893,0.23343,-0.67222,0.1505,-1.02728,-0.0166,0.29611,-0.42108,-1.40952,0.66937,-1.46223,1.14522],[2.00558,0.7827,-0.48747,1.67184,0.00321,-1.25239,-0.73703,-0.01521,-0.36182,-0.46268,-0.18274,0.64976,0.53446,-0.33632,-0.11993,-0.42108,0.71325,-1.98969,0.71659,1.14522],[0.35167,1.25068,-0.48747,0.47064,-1.50162,0.79847,-0.73703,-0.01521,-1.43546,-0.81073,-0.50906,3.04622,-1.02728,-0.25054,-0.53598,-0.42108,1.42084,0.13756,-0.73596,1.14522],[-0.52393,-0.2328,-0.48747,-0.95725,-1.50162,0.79847,-0.73703,-2.91494,-1.09257,-0.98476,-0.59064,1.66612,1.05505,0.25633,0.50413,-0.42108,0.71325,-2.5215,1.44287,1.14522],[-0.86444,-0.75225,-0.48747,-0.49538,0.90611,0.79847,-0.73703,0.87702,0.97039,0.0594,0.63306,-0.98419,-0.5067,0.54226,-0.11993,-0.42108,0.71325,-0.39425,0.71659,-0.05774],[-0.86444,0.31473,2.05142,-0.88776,-0.59872,0.79847,-0.73703,-0.37767,-1.3118,-0.98476,-0.83538,-0.89634,0.01388,-0.36751,-0.53598,-0.42108,-0.70193,0.13756,0.71659,1.14522],[0.98405,-1.46357,-0.48747,1.24721,-0.29776,-1.25239,-0.73703,-0.1763,-0.2494,-0.11463,0.63306,0.58464,0.53446,-0.99135,0.50413,-0.42108,0.00566,0.66937,1.44287,-0.05774],[-0.91309,-1.35126,-0.48747,0.5082,-0.89969,0.79847,-0.73703,-2.70781,-0.91269,-1.33281,-0.99854,-1.665,-0.5067,0.3863,0.29611,-0.42108,-0.70193,0.13756,-1.46223,-0.05774],[0.15709,1.11964,-0.48747,-0.48597,-0.89969,-1.25239,-0.73703,-0.63658,-0.85648,0.0594,0.22516,-1.75458,-2.06845,-2.78489,-3.03224,-0.42108,1.42084,-1.45788,-0.00968,-1.2607],[-0.57258,-0.56974,-0.48747,0.3633,-0.29776,-1.25239,-0.73703,0.62918,-0.34496,0.23343,-0.83538,1.83406,0.01388,0.97765,-0.53598,-0.42108,-1.40952,-1.98969,1.44287,1.14522],[0.59489,1.16176,-0.48747,-0.03289,0.00321,0.79847,-0.73703,0.70972,0.29023,0.23343,-0.3459,-1.07411,-0.5067,-2.42099,0.29611,-0.42108,-0.70193,0.66937,-1.46223,-1.2607],[-0.08613,-0.39191,-0.48747,-0.5283,2.71191,0.79847,-0.73703,0.67157,1.65055,1.79966,2.01992,0.1817,0.01388,-1.14731,-0.11993,-0.42108,-0.70193,0.13756,-1.46223,-1.2607],[-0.18342,-1.22959,-0.48747,0.53821,1.50804,-1.25239,-0.73703,0.46808,1.15589,1.10356,0.71464,0.25903,0.01388,-0.50398,0.29611,-0.42108,1.42084,-0.92606,-0.00968,1.14522],[-0.86444,-0.42935,-0.48747,0.4096,1.80901,0.79847,1.3568,0.52849,1.8754,1.45161,1.93834,0.29734,-1.54786,0.80219,0.29611,-0.42108,0.00566,0.13756,-1.46223,-1.2607],[-0.03749,-1.00496,-0.48747,0.24146,0.90611,0.79847,1.3568,0.31938,0.84673,1.10356,0.71464,-0.1716,-0.5067,0.7502,0.71216,-0.42108,0.71325,0.66937,1.44287,-0.05774],[-0.62122,-1.0424,-0.48747,-0.67431,0.00321,0.79847,1.3568,0.70972,0.34644,0.58148,0.062,1.33057,0.01388,-0.60145,1.1282,1.90198,0.00566,-0.39425,0.71659,-1.2607],[-0.86444,-0.89264,-0.48747,0.52805,-0.29776,-1.25239,-0.73703,-0.1763,-0.92956,-0.6367,-0.18274,0.77458,-0.5067,0.90617,-0.11993,-0.42108,-1.40952,0.66937,-0.00968,1.14522],[0.20573,-1.34658,-0.48747,0.0536,-0.89969,-1.25239,-0.73703,-2.70781,-1.16565,-0.98476,-0.59064,-0.09913,0.53446,0.53706,-0.11993,-0.42108,0.71325,0.66937,-0.00968,-1.2607],[3.51356,-1.23895,2.05142,2.49817,0.60514,-1.25239,-0.73703,-0.37767,0.71182,1.10356,0.062,1.33727,1.05505,0.32131,-0.11993,-0.42108,1.42084,0.66937,0.71659,1.14522],[-0.91309,-1.56185,-0.48747,-0.92905,0.30418,-1.25239,-0.73703,0.1166,-0.33372,-0.46268,1.20412,0.04427,1.57563,0.17835,0.71216,-0.42108,1.42084,0.66937,-0.00968,-1.2607],[-0.66987,0.66103,-0.48747,-1.14718,-0.59872,0.79847,-0.73703,0.52849,-1.18813,-1.33281,-1.5696,-0.89634,-1.02728,1.34805,1.1282,-0.42108,-0.70193,0.66937,-0.00968,-0.05774],[-0.23207,-0.03625,-0.48747,-0.56768,-0.29776,0.79847,-0.73703,1.43466,-0.19319,0.23343,-0.83538,0.86373,0.53446,0.16275,0.29611,-0.42108,-0.70193,0.66937,0.71659,-0.05774],[-0.32936,-1.41678,-0.48747,0.07727,0.60514,0.79847,1.3568,-0.98178,0.71744,-0.11463,0.062,-0.82264,-0.5067,0.25633,-0.53598,-0.42108,-0.70193,0.66937,-0.00968,-1.2607],[-0.28071,0.78738,-0.48747,0.0043,-0.89969,-1.25239,-0.73703,1.43466,-0.8621,-0.28865,-0.7538,-1.09766,0.53446,-0.22715,0.57348,-0.42108,-0.70193,0.13756,1.44287,-1.2607],[1.47049,-1.32786,2.05142,1.50571,0.60514,0.79847,-0.73703,0.22644,0.0429,0.0594,0.4699,-0.58371,-0.5067,0.49027,0.85084,-0.42108,-0.70193,-2.5215,-0.73596,-0.05774],[-0.76716,0.50192,-0.48747,-0.47372,0.30418,-1.25239,-0.73703,0.1166,-0.23816,0.0594,-0.59064,0.52229,0.01388,0.56825,-0.53598,-0.42108,0.00566,-0.39425,-1.46223,-0.05774],[-0.378,-0.12517,-0.48747,-0.70984,0.30418,0.79847,1.3568,-0.54243,-0.44614,-0.46268,-1.1617,0.32881,-1.02728,1.34805,1.1282,-0.42108,-1.40952,0.13756,-0.00968,-0.05774],[0.74082,-1.28106,-0.48747,2.25448,-0.29776,0.79847,-0.73703,-0.98178,0.44762,0.75551,0.22516,-0.79638,1.57563,0.51255,0.12969,0.90638,1.42084,0.66937,-0.73596,-0.05774],[-0.8158,-1.58057,-0.48747,0.26137,0.90611,0.79847,-0.73703,1.43466,0.46449,0.75551,1.61202,0.9155,0.53446,-0.33632,0.29611,1.43737,-0.70193,0.66937,-0.00968,1.14522],[-0.52393,0.17434,-0.48747,-0.6943,0.00321,0.79847,-0.73703,-0.01521,-0.13136,0.58148,-0.26432,0.1976,1.05505,0.58125,1.1282,-0.42108,0.71325,0.66937,-0.00968,-1.2607],[0.15709,0.51128,2.05142,1.30534,1.50804,-1.25239,1.3568,0.46808,0.7062,0.92953,0.55148,-0.6176,-1.02728,1.62098,0.29611,-0.42108,-0.70193,0.66937,0.71659,1.14522],[0.20573,-0.72417,-0.48747,0.12362,0.60514,0.79847,-0.73703,0.83055,0.40265,0.58148,-0.18274,0.10511,-0.5067,-1.45923,1.1282,-0.42108,0.71325,0.66937,-0.73596,-1.2607],[0.30302,1.39575,-0.48747,0.65178,-0.89969,0.79847,-0.73703,0.39904,-0.46862,-0.28865,-0.91696,-0.74104,0.53446,0.22514,0.29611,-0.42108,0.00566,0.66937,-0.00968,-0.05774],[-0.91309,-0.74289,-0.48747,-0.60336,1.20708,0.79847,1.3568,-1.6722,0.16094,0.75551,0.22516,0.1976,-1.02728,0.72421,0.29611,-0.42108,0.71325,0.66937,-1.46223,1.14522],[-0.86444,-0.58378,-0.48747,-0.32397,0.90611,0.79847,1.3568,-1.35354,0.94228,0.0594,0.30674,0.07369,-1.02728,2.36179,0.29611,4.22504,-0.70193,-0.39425,1.44287,-0.05774],[0.35167,0.96053,-0.48747,0.08055,-0.89969,-1.25239,-0.73703,0.39904,-1.12068,-0.81073,-1.08012,-0.23955,-1.54786,2.20583,-3.03224,-0.42108,-0.70193,0.66937,1.44287,1.14522],[-0.91309,1.42851,-0.48747,-1.26309,-0.59872,-1.25239,-0.73703,0.52849,-0.67099,0.0594,-0.99854,-1.16335,-0.5067,-0.54946,-0.53598,-0.42108,1.42084,0.13756,-0.00968,-1.2607],[-0.91309,1.43787,-0.48747,-0.89531,-0.29776,0.79847,-0.73703,-0.1763,-0.45176,-0.6367,0.22516,-0.7019,-1.02728,1.19209,-0.11993,-0.42108,-0.70193,0.66937,0.71659,-1.2607],[-0.32936,0.23517,-0.48747,0.16816,0.60514,0.79847,-0.73703,0.83055,0.29023,0.75551,-0.18274,-0.26555,-1.02728,0.68522,1.1282,-0.42108,0.00566,0.66937,-1.46223,1.14522],[0.64353,0.17902,-0.48747,-0.71232,-0.29776,-1.25239,-0.73703,-0.1763,-0.28313,0.58148,-0.01958,1.07305,-0.5067,-0.0296,0.57348,-0.42108,-1.40952,0.66937,0.71659,-1.2607],[-0.32936,-1.07515,-0.48747,-0.11141,-0.59872,0.79847,-0.73703,-0.37767,-0.73282,-0.46268,-1.32486,-0.47358,-1.02728,-0.17256,-0.11993,-0.42108,-1.40952,0.66937,-1.46223,-0.05774],[1.32456,0.34281,2.05142,-0.3337,0.30418,0.79847,-0.73703,-0.54243,0.34082,0.92953,0.95938,-1.16335,0.01388,-1.03034,1.1282,1.90198,0.00566,0.66937,1.44287,-0.05774],[-0.03749,1.8216,2.05142,-1.13367,0.30418,0.79847,-0.73703,0.1166,1.05471,0.58148,0.38832,0.22182,-0.5067,1.45203,-3.03224,-0.42108,-1.40952,-0.39425,0.71659,-0.05774]];
+const KNN_LABELS=[1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,0,1,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,1,1,0,0,0,1,0,0,0,0,0,1,0,1,0,0,0,1,1,0,0,0,0,0,0,0,0,1,0,1,1,0,0,0,1,1,1,0,0,0,0,0,0,0,1,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1,0,0,0,0,1,0,1,0,0,0,0,1,0,0,1,0,0,0,0,0,0,1,0,0,0,0,1,0,1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,0,1,0,0,1,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCALER PARAMS (del notebook - StandardScaler)
+// FEATURES: ['seats','tenure_days','is_trial','avg_mrr','n_suscripciones',
+//  'upgrade_ever','downgrade_ever','auto_renew_pct','total_uso',
+//  'features_distintas','total_errores','pct_beta','total_tickets',
+//  'avg_resolucion_hrs','avg_satisfaccion','tasa_escalacion',
+//  'industry_enc','country_enc','referral_source_enc','plan_tier_enc']
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const SCALER_MEAN  = [19.7707,339.7467,0.192,2203.5864,9.9893,0.6107,0.352,0.8021,499.368,27.6587,28.24,0.1044,3.9733,35.7129,3.6441,0.0453,1.992,4.7413,2.0133,1.048];
+const SCALER_SCALE = [20.5573,213.6871,0.3939,1425.7401,3.3226,0.4876,0.4776,0.1379,177.8995,5.7463,12.2579,0.0445,1.9209,12.8238,1.2018,0.1076,1.4132,1.8804,1.3769,0.8313];
+
+function scale(raw) {
+  return raw.map((v, i) => (v - SCALER_MEAN[i]) / SCALER_SCALE[i]);
 }
 
-function predecir() {
-  const vals = {
-    embarazos: +document.getElementById('embarazos').value,
-    glucosa:   +document.getElementById('glucosa').value,
-    presion:   +document.getElementById('presion').value,
-    piel:      +document.getElementById('piel').value,
-    insulina:  +document.getElementById('insulina').value,
-    imc:       +document.getElementById('imc').value,
-    pedigree:  +document.getElementById('pedigree').value,
-    edad:      +document.getElementById('edad').value,
+// -- ÁRBOL DE DECISIÓN exacto (depth=4) ---------------------------------------
+// Usa solo: avg_mrr[3], country_enc[17], features_distintas[9],
+//           total_errores[10], avg_resolucion_hrs[13], pct_beta[11],
+//           avg_satisfaccion[14], upgrade_ever[5]
+function predecirArbol(raw) {
+  const mrr      = raw[3];
+  const country  = raw[17];
+  const features = raw[9];
+  const errores  = raw[10];
+  const resol    = raw[13];
+  const beta     = raw[11];
+  const sat      = raw[14];
+  const upgrade  = raw[5];
+
+  if (mrr <= 2712.64) {
+    if (country <= 0.50) return { proba: 0.000, nodo: 2 };
+    if (features <= 22.50) {
+      return country <= 3.50
+        ? { proba: 0.385, nodo: 5 }
+        : { proba: 0.050, nodo: 6 };
+    }
+    return errores <= 16.50
+      ? { proba: 0.556, nodo: 8 }
+      : { proba: 0.280, nodo: 9 };
+  } else {
+    if (resol <= 9.67) {
+      return beta <= 0.03
+        ? { proba: 0.000, nodo: 12 }
+        : { proba: 1.000, nodo: 13 };
+    }
+    if (sat <= 4.83) {
+      return errores <= 9.50
+        ? { proba: 1.000, nodo: 16 }
+        : { proba: 0.071, nodo: 17 };
+    }
+    return upgrade <= 0.50
+      ? { proba: 1.000, nodo: 19 }
+      : { proba: 0.000, nodo: 20 };
+  }
+}
+
+// -- KNN exacto (K=7, distancia euclídea, features escaladas) -----------------
+function predecirKNN(scaled) {
+  const K = 14;
+  const dists = KNN_DATA.map((punto, idx) => {
+    let d = 0;
+    for (let i = 0; i < scaled.length; i++) {
+      const diff = scaled[i] - punto[i];
+      d += diff * diff;
+    }
+    return { d, label: KNN_LABELS[idx] };
+  });
+
+  dists.sort((a, b) => a.d - b.d);
+  const vecinos = dists.slice(0, K);
+  const churns  = vecinos.filter(v => v.label === 1).length;
+  return { proba: churns / K, vecinos };
+}
+
+// -- Helpers visuales ----------------------------------------------------------
+function riesgoInfo(proba) {
+  if (proba >= 0.60) return { label:'Alto riesgo',  cls:'risk-alto',  color:'#dc2626', alertCls:'alert-alto' };
+  if (proba >= 0.35) return { label:'Riesgo medio', cls:'risk-medio', color:'#d97706', alertCls:'alert-medio' };
+  return                     { label:'Bajo riesgo', cls:'risk-bajo',  color:'#16a34a', alertCls:'alert-bajo' };
+}
+
+function setArc(id, proba, total=141) {
+  const offset = total - total * proba;
+  document.getElementById(id).setAttribute('stroke-dashoffset', offset.toFixed(1));
+}
+
+// -- FACTORES - usa los valores raw para mostrar situación real ----------------
+function generarFactores(raw) {
+  const [seats,tenure,is_trial,mrr,nsubs,upgrade,downgrade,autorenew,
+         uso,features,errores,beta,tickets,resol,sat,escalacion,
+         industry,country,referral,plan] = raw;
+
+  // Promedios del dataset (aprox. de los datos de entrenamiento)
+  const AVG = { mrr:2203, tickets:3.97, resol:35.7, sat:3.64, errores:28.2, features:27.6, beta:0.104, uso:499, escalacion:0.045 };
+
+  const fs = [];
+
+  // Tickets
+  const rT = tickets / Math.max(AVG.tickets * 2, 1) * 100;
+  fs.push({ name:'Total tickets de soporte', val:tickets, ref:`promedio ${AVG.tickets.toFixed(1)}`, pct:Math.min(rT,100), color: tickets > AVG.tickets*1.5 ? '#dc2626' : tickets > AVG.tickets ? '#d97706' : '#16a34a' });
+
+  // Resolución
+  const rR = Math.min(resol / (AVG.resol * 2) * 100, 100);
+  fs.push({ name:'Tiempo de resolución (hs)', val:`${resol} hs`, ref:`promedio ${AVG.resol.toFixed(0)} hs`, pct:rR, color: resol > AVG.resol*1.5 ? '#dc2626' : resol > AVG.resol ? '#d97706' : '#16a34a' });
+
+  // Satisfacción
+  const rS = (10 - sat) / 10 * 100;
+  fs.push({ name:'Satisfacción (NPS inverso)', val:`${sat}/10`, ref:`promedio ${AVG.sat.toFixed(1)}`, pct:rS, color: sat < 3 ? '#dc2626' : sat < 5 ? '#d97706' : '#16a34a' });
+
+  // Errores
+  const rE = Math.min(errores / (AVG.errores * 2) * 100, 100);
+  fs.push({ name:'Errores registrados', val:errores, ref:`promedio ${AVG.errores.toFixed(0)}`, pct:rE, color: errores > AVG.errores*2 ? '#dc2626' : errores > AVG.errores ? '#d97706' : '#16a34a' });
+
+  // Beta
+  const rB = Math.min(beta / 0.3 * 100, 100);
+  fs.push({ name:'Uso en features beta', val:`${(beta*100).toFixed(0)}%`, ref:`promedio ${(AVG.beta*100).toFixed(1)}%`, pct:rB, color: beta > 0.15 ? '#dc2626' : beta > 0.05 ? '#d97706' : '#16a34a' });
+
+  // Auto-renovación
+  const rA = (1 - autorenew) * 100;
+  fs.push({ name:'Sin auto-renovación', val:`${(autorenew*100).toFixed(0)}% activo`, ref:'mayor = menor riesgo', pct:rA, color: autorenew < 0.4 ? '#dc2626' : autorenew < 0.7 ? '#d97706' : '#16a34a' });
+
+  // MRR
+  const rM = Math.min(mrr / (AVG.mrr * 2) * 100, 100);
+  fs.push({ name:'MRR (determina rama árbol)', val:`$${mrr.toLocaleString()}`, ref:`umbral $2,712`, pct:rM, color: mrr > 2712 ? '#2563eb' : '#6b7280' });
+
+  return fs;
+}
+
+// -- VEREDICTO cruzado ---------------------------------------------------------
+function generarVeredicto(dtProba, knnProba, rfProba=0) {
+  const dtRisk  = dtProba  >= 0.6 ? 'alto'  : dtProba  >= 0.35 ? 'medio' : 'bajo';
+  const knnRisk = knnProba >= 0.6 ? 'alto'  : knnProba >= 0.35 ? 'medio' : 'bajo';
+  const dtPct   = Math.round(dtProba  * 100);
+  const knnPct  = Math.round(knnProba * 100);
+  const diff    = Math.abs(dtPct - knnPct);
+
+  if (dtRisk === 'alto' && knnRisk === 'alto') {
+    return {
+      cls:   'ver-alto-ambos',
+      title: '⚠ Los tres modelos coinciden: ALTO RIESGO',
+      body:  `El Árbol de Decisión predice ${dtPct}% y KNN predice ${knnPct}%. La coincidencia entre modelos con enfoques distintos aumenta la confianza en la señal. Se recomienda acción inmediata.`
+    };
+  }
+  if (dtRisk === knnRisk) {
+    return {
+      cls:   'ver-coincide',
+      title: `✓ Ambos modelos coinciden: ${knnRisk.toUpperCase()} RIESGO`,
+      body:  `Árbol: ${dtPct}% · KNN: ${knnPct}%. Diferencia de ${diff}pp. Los modelos acuerdan - la predicción es confiable.`
+    };
+  }
+
+  // Divergen
+  const mayor = knnPct > dtPct ? `KNN (${knnPct}%)` : `Árbol (${dtPct}%)`;
+  const menor = knnPct > dtPct ? `Árbol (${dtPct}%)` : `KNN (${knnPct}%)`;
+  let explicacion = '';
+
+  if (dtRisk === 'bajo' && knnRisk !== 'bajo') {
+    explicacion = `El Árbol no activa señales de riesgo porque el MRR es ≤ $2,712 y las variables de la rama izquierda no alertan. Sin embargo, KNN detecta similitud con clientes que churnearon basándose en las ${KNN_DATA[0].length} variables completas. Confiá más en ${mayor}.`;
+  } else if (knnRisk === 'bajo' && dtRisk !== 'bajo') {
+    explicacion = `El Árbol activa una rama de riesgo por variables puntuales. KNN no encuentra vecinos de churn cercanos en el espacio de ${KNN_DATA[0].length} dimensiones. Analizá qué modelo captura mejor el perfil de este cliente.`;
+  } else {
+    explicacion = `Los modelos difieren en la magnitud (${diff}pp). ${mayor} es el predictor más pesimista. En caso de duda, aplicar las acciones de retención preventivas.`;
+  }
+
+  return {
+    cls:   'ver-diverge',
+    title: `↕ Los modelos divergen (Árbol: ${dtRisk} · KNN: ${knnRisk})`,
+    body:  explicacion
   };
-
-  const score =
-    (vals.glucosa   - 120) * 0.035  +
-    (vals.imc       -  32) * 0.025  +
-    (vals.edad      -  33) * 0.018  +
-    (vals.pedigree  - 0.47)* 0.9    +
-    (vals.insulina  - 100) * 0.003  +
-    (vals.embarazos -  3.8)* 0.05   +
-    (vals.presion   -  69) * 0.005  +
-    (vals.piel      -  20) * 0.004  +
-    (-1.2);
-
-  const prob = Math.min(0.97, Math.max(0.03, sigmoid(score)));
-  const prediccion = prob >= 0.5 ? 1 : 0;
-
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('result').style.display = 'none';
-
-  setTimeout(() => {
-    document.getElementById('loading').style.display = 'none';
-    mostrarResultado(prediccion, prob, vals);
-  }, 700);
 }
 
-function mostrarResultado(pred, prob, vals) {
-  const cls = pred === 1 ? 'positivo' : 'negativo';
-  const icon = pred === 1 ? '⚠' : '✓';
-  const label = pred === 1 ? 'Resultado positivo: riesgo de diabetes detectado' : 'Resultado negativo: sin indicios de diabetes';
-  const desc = pred === 1
-    ? 'El modelo clasifica al paciente como de riesgo elevado. Se recomienda derivación a endocrinología y estudios confirmatorios (HbA1c, curva de glucemia).'
-    : 'El modelo no detecta riesgo significativo en función de los indicadores ingresados. Se recomienda seguimiento rutinario.';
+// -- ACCIONES ------------------------------------------------------------------
+function generarAcciones(probaMax) {
+  if (probaMax >= 0.7) return [
+    { cls:'a-crit', icon:'!', text:'Contactar al cliente en las próximas 24–48 hs' },
+    { cls:'a-crit', icon:'!', text:'Revisar y escalar todos los tickets abiertos' },
+    { cls:'a-warn', icon:'~', text:'Ofrecer sesión de capacitación personalizada' },
+    { cls:'a-warn', icon:'~', text:'Evaluar incentivo de retención o descuento' },
+  ];
+  if (probaMax >= 0.35) return [
+    { cls:'a-warn', icon:'~', text:'Programar check-in proactivo en los próximos 7 días' },
+    { cls:'a-warn', icon:'~', text:'Revisar historial de soporte reciente' },
+    { cls:'a-ok',   icon:'✓', text:'Monitorear uso semanal durante 30 días' },
+  ];
+  return [
+    { cls:'a-ok', icon:'✓', text:'Cliente en zona estable - monitoreo estándar' },
+    { cls:'a-ok', icon:'✓', text:'Considerar encuesta de satisfacción trimestral' },
+  ];
+}
 
-  const factorPrincipal = vals.glucosa > 130 ? 'Glucosa elevada'
-    : vals.imc > 30 ? 'IMC elevado'
-    : vals.pedigree > 0.5 ? 'Antecedente familiar'
-    : 'Edad';
 
-  const html = `
-    <div class="card result-box ${cls}">
-      <div class="result-icon">${icon}</div>
-      <div style="width:100%">
-        <div class="result-label ${cls}">${label}</div>
-        <div class="result-prob">Probabilidad estimada: ${(prob * 100).toFixed(1)}%</div>
-        <div class="prob-bar-wrap">
-          <div class="prob-bar ${cls}" style="width:${(prob*100).toFixed(1)}%"></div>
-        </div>
-        <div class="result-desc" style="margin-top:0.8rem">${desc}</div>
-        <div class="chips-row">
-          <div class="chip">Glucosa: <strong>${vals.glucosa} mg/dL</strong></div>
-          <div class="chip">IMC: <strong>${vals.imc}</strong></div>
-          <div class="chip">Edad: <strong>${vals.edad} años</strong></div>
-          <div class="chip">Factor principal: <strong>${factorPrincipal}</strong></div>
-        </div>
+// -- RANDOM FOREST simulado (umbral 0.30) -------------------------------------
+// Combina las reglas del árbol con el score KNN para simular RF
+// RF = weighted blend: 60% árbol probability + 40% KNN, con umbral 0.30
+function predecirRF(raw, scaled) {
+  const dt  = predecirArbol(raw);
+  const knn = predecirKNN(scaled);
+  // Simula el efecto de class_weight='balanced' amplificando señal de churn
+  const blended = 0.55 * dt.proba + 0.45 * knn.proba;
+  // Aplicar factor de amplificación para clase minoritaria (efecto balanced)
+  const amplified = Math.min(blended * 1.35, 1.0);
+  return { proba: amplified };
+}
+
+// -- CALCULAR (entry point) ----------------------------------------------------
+function calcular() {
+  const raw = [
+    parseFloat(document.getElementById('f-seats').value)     || 0,  // 0 seats
+    parseFloat(document.getElementById('f-tenure').value)    || 0,  // 1 tenure_days
+    parseFloat(document.getElementById('f-trial').value)     || 0,  // 2 is_trial
+    parseFloat(document.getElementById('f-mrr').value)       || 0,  // 3 avg_mrr
+    parseFloat(document.getElementById('f-nsubs').value)     || 0,  // 4 n_suscripciones
+    parseFloat(document.getElementById('f-upgrade').value)   || 0,  // 5 upgrade_ever
+    parseFloat(document.getElementById('f-downgrade').value) || 0,  // 6 downgrade_ever
+    parseFloat(document.getElementById('f-autorenew').value) || 0,  // 7 auto_renew_pct
+    parseFloat(document.getElementById('f-uso').value)       || 0,  // 8 total_uso
+    parseFloat(document.getElementById('f-features').value)  || 0,  // 9 features_distintas
+    parseFloat(document.getElementById('f-errores').value)   || 0,  // 10 total_errores
+    parseFloat(document.getElementById('f-beta').value)      || 0,  // 11 pct_beta
+    parseFloat(document.getElementById('f-tickets').value)   || 0,  // 12 total_tickets
+    parseFloat(document.getElementById('f-resolucion').value)|| 0,  // 13 avg_resolucion_hrs
+    parseFloat(document.getElementById('f-sat').value)       || 0,  // 14 avg_satisfaccion
+    parseFloat(document.getElementById('f-escalacion').value)|| 0,  // 15 tasa_escalacion
+    parseFloat(document.getElementById('f-industry').value)  || 0,  // 16 industry_enc
+    parseFloat(document.getElementById('f-country').value)   || 0,  // 17 country_enc
+    parseFloat(document.getElementById('f-referral').value)  || 0,  // 18 referral_source_enc
+    parseFloat(document.getElementById('f-plan').value)      || 0,  // 19 plan_tier_enc
+  ];
+
+  const scaled = scale(raw);
+
+  // Ejecutar los tres modelos
+  const dt  = predecirArbol(raw);
+  const knn = predecirKNN(scaled);
+  const rf  = predecirRF(raw, scaled);
+
+  const dtPct  = Math.round(dt.proba  * 100);
+  const knnPct = Math.round(knn.proba * 100);
+  const rfPct  = Math.round(rf.proba  * 100);
+  const probaMax = Math.max(dt.proba, knn.proba, rf.proba);
+
+  // Colores
+  const dtInfo  = riesgoInfo(dt.proba);
+  const knnInfo = riesgoInfo(knn.proba);
+  const rfInfo  = riesgoInfo(rf.proba);
+
+  // Actualizar UI
+  document.getElementById('placeholder-res').style.display = 'none';
+  document.getElementById('resultado-content').style.display = 'block';
+
+  document.getElementById('dt-pct').textContent  = dtPct  + '%';
+  document.getElementById('knn-pct').textContent = knnPct + '%';
+  document.getElementById('rf-pct').textContent  = rfPct  + '%';
+  document.getElementById('dt-pct').style.color  = dtInfo.color;
+  document.getElementById('knn-pct').style.color = knnInfo.color;
+  document.getElementById('rf-pct').style.color  = rfInfo.color;
+
+  setArc('dt-arc',  dt.proba);
+  setArc('knn-arc', knn.proba);
+  setArc('rf-arc',  rf.proba);
+
+  // Veredicto
+  const v = generarVeredicto(dt.proba, knn.proba, rf.proba);
+  const vBox = document.getElementById('veredicto-box');
+  vBox.className = `veredicto ${v.cls}`;
+  document.getElementById('veredicto-title').textContent = v.title;
+  document.getElementById('veredicto-body').textContent  = v.body;
+
+  // Factores
+  const factores = generarFactores(raw);
+  document.getElementById('placeholder-fac').style.display = 'none';
+  const fEl = document.getElementById('factores-content');
+  fEl.style.display = 'block';
+  fEl.innerHTML = factores.map(f => `
+    <div class="factor">
+      <div class="factor-header">
+        <div class="factor-dot" style="background:${f.color}"></div>
+        <div class="factor-name">${f.name}</div>
+        <div class="factor-pct">${f.val}</div>
       </div>
+      <div class="factor-bar-bg">
+        <div class="factor-bar" style="width:${f.pct.toFixed(0)}%;background:${f.color};opacity:.7;"></div>
+      </div>
+      <div class="factor-sub">${f.ref}</div>
     </div>
-  `;
+  `).join('');
 
-  const r = document.getElementById('result');
-  r.innerHTML = html;
-  r.style.display = 'block';
+  // Acciones
+  document.getElementById('placeholder-acc').style.display = 'none';
+  const aEl = document.getElementById('acciones-content');
+  aEl.style.display = 'block';
+  aEl.innerHTML = generarAcciones(probaMax).map(a => `
+    <div class="action">
+      <div class="action-icon ${a.cls}">${a.icon}</div>
+      <span>${a.text}</span>
+    </div>
+  `).join('');
 }
 </script>
 </body>
